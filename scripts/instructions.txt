@@ -1,0 +1,2 @@
+EDIT CRONTAB USING "crontab -e" add crons inside crontab file in this folder
+COPY "set-rosmaster.sh" to /etc/profile.d

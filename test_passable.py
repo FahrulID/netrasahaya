@@ -115,7 +115,7 @@ def is_path_possible(grid, start_points, end_points, boundary_polygon=None) -> b
 downsampled_grid = downsample(occupancy_grid, kernel)
 print(downsampled_grid)
 # boundary = [(0, 0), (5, 0), (5, 10), (0, 10)]
-boundary = [(0, 0), (0, 1), (10, 1), (10, 0)]
+boundary = [(0, 0), (0, 5), (10, 5), (10, 0)]
 print(is_path_possible(downsampled_grid, start_points=[(9, 0), (8, 0)], end_points=[(0, 2), (0, 6), (0, 7), (0, 8)], boundary_polygon=boundary))
 
 # downsampled_test_grid = downsample(test_grid, kernel)

@@ -1,0 +1,2 @@
+@reboot /home/jetson/netrasahaya/scripts/wifi-dongle-on-boot.sh
+@reboot /home/jetson/netrasahaya/scripts/set-arduino-serial-readable.sh

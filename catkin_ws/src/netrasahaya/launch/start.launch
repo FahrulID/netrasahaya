@@ -1,8 +1,8 @@
 <launch>
     <param name="mode" type="string" value="sensing" /> <!-- guidance or sensing -->
 
-    <arg name="using_rosbag" default="true"/>
-    <arg name="rviz" default="true"/>
+    <arg name="using_rosbag" default="false"/>
+    <arg name="rviz" default="false"/>
     <arg name="localization" default="true"/>
 
     <arg     if="$(arg localization)" name="pre_args" default=""/>
