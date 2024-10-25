@@ -1,0 +1,12 @@
+[submodule "actionlib"]
+	path = actionlib
+	url = https://github.com/ros/actionlib.git
+[submodule "geometry2"]
+	path = geometry2
+	url = https://github.com/ros/geometry2.git
+[submodule "navigation"]
+	path = navigation
+	url = https://github.com/ros-planning/navigation.git
+[submodule "realsense-ros"]
+	path = realsense-ros
+	url = https://github.com/IntelRealSense/realsense-ros.git
