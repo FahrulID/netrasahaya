@@ -6,88 +6,142 @@ import tf_conversions
 from geometry_msgs.msg import TransformStamped
 from nav_msgs.msg import Odometry
 from nav_msgs.msg import OccupancyGrid
-from geometry_msgs.msg import Quaternion
+from sensor_msgs.msg import PointCloud2
+import math
+
+def quat_rotate(rotation, vector):
+    """
+    Rotate a vector according to a quaternion. Equivalent to the C++ method tf::quatRotate
+    :param rotation: the rotation
+    :param vector: the vector to rotate
+    :return: the rotated vector
+    """
+
+    def quat_mult_point(q, w):
+        return (q[3] * w[0] + q[1] * w[2] - q[2] * w[1],
+                q[3] * w[1] + q[2] * w[0] - q[0] * w[2],
+                q[3] * w[2] + q[0] * w[1] - q[1] * w[0],
+                -q[0] * w[0] - q[1] * w[1] - q[2] * w[2])
+
+    q = quat_mult_point(rotation, vector)
+    q = tf_conversions.transformations.quaternion_multiply(q, tf_conversions.transformations.quaternion_inverse(rotation))
+    return [q[0], q[1], q[2]] 
 
 def handle_t265_odom(msg):
-    # Broadcast map -> odom (static)
-    static_broadcaster.sendTransform(map_to_odom_tf)
-    
-    # Broadcast odom -> base_link (dynamic, from t265 odom)
-    odom_to_base_link_tf = TransformStamped()
-    odom_to_base_link_tf.header.stamp = rospy.Time.now()
-    odom_to_base_link_tf.header.frame_id = "odom"
-    odom_to_base_link_tf.child_frame_id = "base_link"
-    
-    # Set the position and orientation from the t265 odometry message
-    odom_to_base_link_tf.transform.translation.x = msg.pose.pose.position.x
-    odom_to_base_link_tf.transform.translation.y = msg.pose.pose.position.y
-    odom_to_base_link_tf.transform.translation.z = msg.pose.pose.position.z
-    
-    # Ensure quaternion is properly assigned
-    odom_to_base_link_tf.transform.rotation = msg.pose.pose.orientation
+    base_link = TransformStamped()
+    base_link.header.stamp = rospy.Time.now()
+    base_link.header.frame_id = "odom"
+    base_link.child_frame_id = "base_link"
 
-    # Broadcast the transform
-    dynamic_broadcaster.sendTransform(odom_to_base_link_tf)
+    position = [msg.pose.pose.position.x, msg.pose.pose.position.y, msg.pose.pose.position.z]
+    orientation = [msg.pose.pose.orientation.x, msg.pose.pose.orientation.y, msg.pose.pose.orientation.z, msg.pose.pose.orientation.w]
+    rot_matrix = tf_conversions.transformations.euler_matrix(0, 0, math.pi/2, 'rxyz')
+    q_rot = tf_conversions.transformations.quaternion_from_matrix(rot_matrix)
 
-    # Broadcast base_link -> t265_link (static)
-    base_link_to_t265_tf.header.stamp = rospy.Time.now()
-    dynamic_broadcaster.sendTransform(base_link_to_t265_tf)
+    new_position = quat_rotate(q_rot, position)
+
+    base_link.transform.translation.x = new_position[0]
+    base_link.transform.translation.y = new_position[1]
+    base_link.transform.translation.z = new_position[2]
     
-    # Broadcast base_link -> d400_link (static)
-    base_link_to_d400_tf.header.stamp = rospy.Time.now()
-    dynamic_broadcaster.sendTransform(base_link_to_d400_tf)
+    new_orientation = tf_conversions.transformations.quaternion_multiply(orientation, q_rot)
 
-def handle_map(msg):
-    # x 0 y 0 z 0.707107 w -0.707107
+    base_link.transform.rotation.x = new_orientation[0]
+    base_link.transform.rotation.y = new_orientation[1]
+    base_link.transform.rotation.z = new_orientation[2]
+    base_link.transform.rotation.w = new_orientation[3]
+
+    # base_link.transform.translation.x = rot_matrix[0][0]*position[0] + rot_matrix[0][1]*position[1] + rot_matrix[0][2]*position[2]
+    # base_link.transform.translation.y = rot_matrix[1][0]*position[0] + rot_matrix[1][1]*position[1] + rot_matrix[1][2]*position[2]
+    # base_link.transform.translation.z = rot_matrix[2][0]*position[0] + rot_matrix[2][1]*position[1] + rot_matrix[2][2]*position[2]
+    
+    # new_orientation = tf_conversions.transformations.quaternion_multiply(orientation, tf_conversions.transformations.quaternion_from_matrix(rot_matrix))
+
+    # base_link.transform.rotation.x = new_orientation[0]
+    # base_link.transform.rotation.y = new_orientation[1]
+    # base_link.transform.rotation.z = new_orientation[2]
+    # base_link.transform.rotation.w = new_orientation[3]
+
+    br.sendTransform(base_link)
+
     new_msg = msg
-    new_msg.info.origin.position = msg.info.origin.position
-    new_msg.info.origin.orientation.x = 0
-    new_msg.info.origin.orientation.y = 0
-    new_msg.info.origin.orientation.z = 0.707107
-    new_msg.info.origin.orientation.w = -0.707107
+    new_msg.header.stamp = rospy.Time.now()
+    new_msg.header.frame_id = "odom"
+    new_msg.child_frame_id = "base_link"
+    odometry_pub.publish(new_msg)
 
-    costmap.publish(new_msg)
+def handle_d400_points(msg):
+    camera_link = TransformStamped()
+    camera_link.header.stamp = rospy.Time.now()
+    camera_link.header.frame_id = "base_link"
+    camera_link.child_frame_id = "camera_link"
+
+    translation = [0, 0, 0]
+    orientation = [0, 0, 0, 1]
+    # rot_matrix = tf_conversions.transformations.euler_matrix(0, 0, 0)
+    rot_matrix = tf_conversions.transformations.euler_matrix(0, math.pi/2, -math.pi/2, 'rxyz')
+    q_rot = tf_conversions.transformations.quaternion_from_matrix(rot_matrix)
+
+    new_translation = quat_rotate(q_rot, translation)
+
+    camera_link.transform.translation.x = new_translation[0]
+    camera_link.transform.translation.y = new_translation[1]
+    camera_link.transform.translation.z = new_translation[2]
+    
+    new_orientation = tf_conversions.transformations.quaternion_multiply(orientation, q_rot)
+
+    camera_link.transform.rotation.x = new_orientation[0]
+    camera_link.transform.rotation.y = new_orientation[1]
+    camera_link.transform.rotation.z = new_orientation[2]
+    camera_link.transform.rotation.w = new_orientation[3]
+
+    br.sendTransform(camera_link)
+
+    new_msg = msg
+    new_msg.header.stamp = rospy.Time.now()
+    new_msg.header.frame_id = "camera_link"
+    point_cloud_pub.publish(new_msg)
+
+def handle_occupancy(msg):
+    new_map = OccupancyGrid()
+    new_map.header.stamp = rospy.Time.now()
+    new_map.header.frame_id = "map"
+
+    origin_position = [msg.info.origin.position.x, msg.info.origin.position.y, msg.info.origin.position.z]
+    origin_orientation = [msg.info.origin.orientation.x, msg.info.origin.orientation.y, msg.info.origin.orientation.z, msg.info.origin.orientation.w]
+
+    rot_matrix = tf_conversions.transformations.euler_matrix(0, 0, math.pi/2, 'rxyz')
+    q_rot = tf_conversions.transformations.quaternion_from_matrix(rot_matrix)
+
+    new_origin_position = quat_rotate(q_rot, origin_position)
+    new_origin_orientation = tf_conversions.transformations.quaternion_multiply(origin_orientation, q_rot)
+    
+    new_map.info.map_load_time = msg.info.map_load_time
+    new_map.info.resolution = msg.info.resolution
+    new_map.info.width = msg.info.width
+    new_map.info.height = msg.info.height
+    new_map.info.origin.position.x = new_origin_position[0]
+    new_map.info.origin.position.y = new_origin_position[1]
+    new_map.info.origin.position.z = new_origin_position[2]
+    new_map.info.origin.orientation.x = new_origin_orientation[0]
+    new_map.info.origin.orientation.y = new_origin_orientation[1]
+    new_map.info.origin.orientation.z = new_origin_orientation[2]
+    new_map.info.origin.orientation.w = new_origin_orientation[3]
+    new_map.data = msg.data
+
+    map_pub.publish(new_map)
 
 if __name__ == '__main__':
     rospy.init_node('tf_broadcaster')
 
-    # Initialize the transform broadcaster
-    static_broadcaster = tf2_ros.StaticTransformBroadcaster()
-    dynamic_broadcaster = tf2_ros.TransformBroadcaster()
+    br = tf2_ros.TransformBroadcaster()
 
-    # Define the static transform from map to odom
-    map_to_odom_tf = TransformStamped()
-    map_to_odom_tf.header.stamp = rospy.Time.now()
-    map_to_odom_tf.header.frame_id = "map"
-    map_to_odom_tf.child_frame_id = "odom"
-    map_to_odom_tf.transform.translation.x = 0.0
-    map_to_odom_tf.transform.translation.y = 0.0
-    map_to_odom_tf.transform.translation.z = 0.0
-    # Convert quaternion from numpy array to ROS Quaternion message
-    q = tf_conversions.transformations.quaternion_from_euler(0, 0, 0)
-    map_to_odom_tf.transform.rotation = Quaternion(*q)
-
-    # Define the static transform from base_link to t265_link
-    base_link_to_t265_tf = TransformStamped()
-    base_link_to_t265_tf.header.frame_id = "base_link"
-    base_link_to_t265_tf.child_frame_id = "tracking_link"
-    base_link_to_t265_tf.transform.translation.x = 0.0
-    base_link_to_t265_tf.transform.translation.y = 0.0
-    base_link_to_t265_tf.transform.translation.z = 0.0
-    base_link_to_t265_tf.transform.rotation = Quaternion(*tf_conversions.transformations.quaternion_from_euler(0, 0, 0))
-
-    # Define the static transform from base_link to d400_link
-    base_link_to_d400_tf = TransformStamped()
-    base_link_to_d400_tf.header.frame_id = "base_link"
-    base_link_to_d400_tf.child_frame_id = "depth_link"
-    base_link_to_d400_tf.transform.translation.x = 0.0
-    base_link_to_d400_tf.transform.translation.y = 0.0
-    base_link_to_d400_tf.transform.translation.z = 0.0
-    base_link_to_d400_tf.transform.rotation = Quaternion(*tf_conversions.transformations.quaternion_from_euler(0, 0, 0))
-
-    # Subscribe to the /t265/odom/sample topic (nav_msgs/Odometry)
     rospy.Subscriber('/t265/odom/sample', Odometry, handle_t265_odom)
-    # rospy.Subscriber('/move_base/global_costmap/costmap', OccupancyGrid, handle_map)
-    # costmap = rospy.Publisher('/move_base/global_costmap/costmap', OccupancyGrid, queue_size=10)
+    rospy.Subscriber('/d400/depth/color/points', PointCloud2, handle_d400_points)
+    rospy.Subscriber('/occupancy', OccupancyGrid, handle_occupancy)
+
+    odometry_pub = rospy.Publisher('/tracking', Odometry, queue_size=10)
+    point_cloud_pub = rospy.Publisher('/depth', PointCloud2, queue_size=10)
+    map_pub = rospy.Publisher('/map', OccupancyGrid, queue_size=10)
 
     rospy.spin()

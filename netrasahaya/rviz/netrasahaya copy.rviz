@@ -112,8 +112,6 @@ Visualization Manager:
         All Enabled: false
         base_link:
           Value: true
-        camera_link:
-          Value: true
         d400_aligned_depth_to_color_frame:
           Value: false
         d400_color_frame:
@@ -123,9 +121,11 @@ Visualization Manager:
         d400_depth_frame:
           Value: false
         d400_depth_optical_frame:
-          Value: false
+          Value: true
         d400_link:
           Value: false
+        depth_link:
+          Value: true
         map:
           Value: true
         odom:
@@ -133,9 +133,11 @@ Visualization Manager:
         t265_link:
           Value: false
         t265_odom_frame:
-          Value: false
+          Value: true
         t265_pose_frame:
-          Value: false
+          Value: true
+        tracking_link:
+          Value: true
       Marker Alpha: 1
       Marker Scale: 1
       Name: TF
@@ -146,7 +148,9 @@ Visualization Manager:
         map:
           odom:
             base_link:
-              camera_link:
+              depth_link:
+                {}
+              tracking_link:
                 {}
           t265_odom_frame:
             t265_pose_frame:
@@ -179,9 +183,9 @@ Visualization Manager:
       Color Transformer: RGB8
       Color Transport Hint: raw
       Decay Time: 0
-      Depth Map Topic: /depth
+      Depth Map Topic: /d400/depth/image_rect_raw
       Depth Map Transport Hint: raw
-      Enabled: false
+      Enabled: true
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Min Color: 0; 0; 0
@@ -198,7 +202,7 @@ Visualization Manager:
       Topic Filter: true
       Use Fixed Frame: true
       Use rainbow: true
-      Value: false
+      Value: true
     - Class: rviz/Image
       Enabled: true
       Image Topic: /d400/depth/image_rect_raw
@@ -223,16 +227,16 @@ Visualization Manager:
       Transport Hint: raw
       Unreliable: false
       Value: true
-    - Alpha: 0.699999988079071
+    - Alpha: 0.699999988
       Class: rviz/Map
       Color Scheme: map
       Draw Behind: false
       Enabled: false
       Name: Map
-      Topic: /map
+      Topic: /occupancy
       Unreliable: false
       Use Timestamp: false
-      Value: false
+      Value: true
     - Alpha: 0.699999988079071
       Class: rviz/Map
       Color Scheme: map
@@ -252,34 +256,6 @@ Visualization Manager:
       Topic: /move_base/global_costmap/costmap
       Unreliable: false
       Use Timestamp: false
-      Value: false
-    - Alpha: 1
-      Autocompute Intensity Bounds: true
-      Autocompute Value Bounds:
-        Max Value: 10
-        Min Value: -10
-        Value: true
-      Axis: Z
-      Channel Name: intensity
-      Class: rviz/PointCloud2
-      Color: 255; 255; 255
-      Color Transformer: RGB8
-      Decay Time: 0
-      Enabled: true
-      Invert Rainbow: false
-      Max Color: 255; 255; 255
-      Min Color: 0; 0; 0
-      Name: PointCloud2
-      Position Transformer: XYZ
-      Queue Size: 10
-      Selectable: true
-      Size (Pixels): 3
-      Size (m): 0.009999999776482582
-      Style: Flat Squares
-      Topic: /depth
-      Unreliable: false
-      Use Fixed Frame: true
-      Use rainbow: true
       Value: true
   Enabled: true
   Global Options:
@@ -309,7 +285,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 14.608868598937988
+      Distance: 19.7071590423584
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -317,17 +293,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: -1.0790938138961792
-        Y: 2.4033710956573486
-        Z: 1.2477788925170898
+        X: -1.036299705505371
+        Y: 0.12243076413869858
+        Z: 0.058379173278808594
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.5397963523864746
+      Pitch: 1.5697963237762451
       Target Frame: <Fixed Frame>
-      Yaw: 3.390397310256958
+      Yaw: 2.775394916534424
     Saved: ~
 Window Geometry:
   Displays:
