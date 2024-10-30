@@ -142,6 +142,6 @@ if __name__ == '__main__':
 
     odometry_pub = rospy.Publisher('/tracking', Odometry, queue_size=10)
     point_cloud_pub = rospy.Publisher('/depth', PointCloud2, queue_size=10)
-    map_pub = rospy.Publisher('/map', OccupancyGrid, queue_size=10)
+    map_pub = rospy.Publisher('/occupancy/map', OccupancyGrid, queue_size=10)
 
     rospy.spin()
