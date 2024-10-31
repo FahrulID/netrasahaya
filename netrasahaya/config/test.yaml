@@ -11,9 +11,10 @@ GlobalPlanner: # For list of available parameters, see http://wiki.ros.org/globa
   cost_factor: 0.5
 
 DWAPlannerROS:
-  max_vel_x: 1
-  max_vel_y: 1
-  min_vel_y: 0.0
+  max_vel_x: 5
+  min_vel_x: 0
+  max_vel_y: 5
+  min_vel_y: 0
 
 # footprint: [[0.80, 0.80], [0.80, -0.80], [-0.80, -0.80], [-0.80, 0.80]]
 robot_radius: 0.25

@@ -16,6 +16,7 @@ Panels:
         - /DepthCloud1/Occlusion Compensation1
         - /Map4
         - /Path1
+        - /WrenchStamped1
       Splitter Ratio: 0.5
     Tree Height: 734
   - Class: rviz/Selection
@@ -436,6 +437,21 @@ Visualization Manager:
       Topic: /move_base/DWAPlannerROS/global_plan
       Unreliable: false
       Value: true
+    - Alpha: 1
+      Arrow Width: 0.5
+      Class: rviz/WrenchStamped
+      Enabled: true
+      Force Arrow Scale: 1
+      Force Color: 204; 51; 51
+      Hide Small Values: true
+      History Length: 1
+      Name: WrenchStamped
+      Queue Size: 10
+      Topic: /cmd_vel/stamped
+      Torque Arrow Scale: 1
+      Torque Color: 204; 204; 51
+      Unreliable: false
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -464,7 +480,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 5.579164981842041
+      Distance: 6.566726207733154
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -472,9 +488,9 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 1.6100389957427979
-        Y: -2.1501667499542236
-        Z: 0.03824381157755852
+        X: 1.2904678583145142
+        Y: -1.8064002990722656
+        Z: 0.18772831559181213
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false

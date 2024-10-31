@@ -7,6 +7,7 @@ from geometry_msgs.msg import TransformStamped
 from nav_msgs.msg import Odometry
 from nav_msgs.msg import OccupancyGrid
 from sensor_msgs.msg import PointCloud2
+from geometry_msgs.msg import Twist, WrenchStamped
 import math
 
 def quat_rotate(rotation, vector):
@@ -131,6 +132,21 @@ def handle_occupancy(msg):
 
     map_pub.publish(new_map)
 
+def handle_twist(msg):
+    wrench = WrenchStamped()
+    wrench.header.stamp = rospy.Time.now()
+    wrench.header.frame_id = "base_link"
+    
+    wrench.wrench.force.x = msg.linear.x * 10
+    wrench.wrench.force.y = msg.linear.y * 10
+    wrench.wrench.force.z = msg.linear.z * 10
+
+    wrench.wrench.torque.x = msg.angular.x * 10
+    wrench.wrench.torque.y = msg.angular.y * 10
+    wrench.wrench.torque.z = msg.angular.z * 10
+
+    twist_pub.publish(wrench)
+
 if __name__ == '__main__':
     rospy.init_node('tf_broadcaster')
 
@@ -139,9 +155,11 @@ if __name__ == '__main__':
     rospy.Subscriber('/t265/odom/sample', Odometry, handle_t265_odom)
     rospy.Subscriber('/d400/depth/color/points', PointCloud2, handle_d400_points)
     rospy.Subscriber('/occupancy', OccupancyGrid, handle_occupancy)
+    rospy.Subscriber('/cmd_vel', Twist, handle_twist)
 
-    odometry_pub = rospy.Publisher('/tracking', Odometry, queue_size=10)
+    odometry_pub = rospy.Publisher('/odom', Odometry, queue_size=10)
     point_cloud_pub = rospy.Publisher('/depth', PointCloud2, queue_size=10)
     map_pub = rospy.Publisher('/occupancy/map', OccupancyGrid, queue_size=10)
+    twist_pub = rospy.Publisher('/cmd_vel/stamped', WrenchStamped, queue_size=10)
 
     rospy.spin()
