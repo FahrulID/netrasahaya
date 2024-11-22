@@ -70,6 +70,13 @@ def handle_t265_odom(msg, now = None):
     new_msg.header.stamp = rospy.Time.now()
     new_msg.header.frame_id = "odom"
     new_msg.child_frame_id = "base_link"
+    new_msg.pose.pose.position.x = new_position[0]
+    new_msg.pose.pose.position.y = new_position[1]
+    new_msg.pose.pose.position.z = new_position[2]
+    new_msg.pose.pose.orientation.x = new_orientation[0]
+    new_msg.pose.pose.orientation.y = new_orientation[1]
+    new_msg.pose.pose.orientation.z = new_orientation[2]
+    new_msg.pose.pose.orientation.w = new_orientation[3]
     odometry_pub.publish(new_msg)
 
 def handle_d400_points(msg, now = None):
@@ -192,25 +199,25 @@ if __name__ == '__main__':
 
     br = tf2_ros.TransformBroadcaster()
 
-    # rospy.Subscriber('/t265/odom/sample', Odometry, handle_t265_odom)
-    # rospy.Subscriber('/d400/depth/color/points', PointCloud2, handle_d400_points)
+    rospy.Subscriber('/t265/odom/sample', Odometry, handle_t265_odom)
+    rospy.Subscriber('/d400/depth/color/points', PointCloud2, handle_d400_points)
     # rospy.Subscriber('/d400/depth/image_rect_raw', Image, handle_d400_image)
     # rospy.Subscriber('/d400/depth/camera_info', CameraInfo, handle_d400_camera_info)
     rospy.Subscriber('/occupancy', OccupancyGrid, handle_occupancy)
     rospy.Subscriber('/cmd_vel', Twist, handle_twist)
 
-    odometry_sub = message_filters.Subscriber('/t265/odom/sample', Odometry)
-    point_cloud_sub = message_filters.Subscriber('/d400/depth/color/points', PointCloud2)
-    image_sub = message_filters.Subscriber('/d400/depth/image_rect_raw', Image)
-    camera_info_sub = message_filters.Subscriber('/d400/depth/camera_info', CameraInfo)
+    # odometry_sub = message_filters.Subscriber('/t265/odom/sample', Odometry)
+    # point_cloud_sub = message_filters.Subscriber('/d400/depth/color/points', PointCloud2)
+    # image_sub = message_filters.Subscriber('/d400/depth/image_rect_raw', Image)
+    # camera_info_sub = message_filters.Subscriber('/d400/depth/camera_info', CameraInfo)
 
-    ts = message_filters.ApproximateTimeSynchronizer([odometry_sub, point_cloud_sub, image_sub, camera_info_sub], 10, 0.1)
-    ts.registerCallback(callback)
+    # ts = message_filters.ApproximateTimeSynchronizer([odometry_sub, point_cloud_sub, image_sub, camera_info_sub], 10, 0.1)
+    # ts.registerCallback(callback)
 
     odometry_pub = rospy.Publisher('/odom', Odometry, queue_size=10)
     point_cloud_pub = rospy.Publisher('/depth', PointCloud2, queue_size=10)
-    image_pub = rospy.Publisher('/depth/image', Image, queue_size=10)
-    camera_info_pub = rospy.Publisher('/depth/camera_info', CameraInfo, queue_size=10)
+    # image_pub = rospy.Publisher('/depth/image', Image, queue_size=10)
+    # camera_info_pub = rospy.Publisher('/depth/camera_info', CameraInfo, queue_size=10)
     map_pub = rospy.Publisher('/occupancy/map', OccupancyGrid, queue_size=10)
     twist_pub = rospy.Publisher('/cmd_vel/stamped', WrenchStamped, queue_size=10)
 

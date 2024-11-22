@@ -1,0 +1,18 @@
+digraph G {
+"d400_link" -> "d400_depth_frame"[label=" Broadcaster: /play_1732180334911907070\nAverage rate: 10000.0\nBuffer length: 0.0\nMost recent transform: 0.0\nOldest transform: 0.0\n"];
+"t265_link" -> "d400_link"[label=" Broadcaster: /play_1732180334911907070\nAverage rate: 10.192\nBuffer length: 4.906\nMost recent transform: 1729505361.451\nOldest transform: 1729505356.545\n"];
+"d400_depth_frame" -> "d400_depth_optical_frame"[label=" Broadcaster: /play_1732180334911907070\nAverage rate: 10000.0\nBuffer length: 0.0\nMost recent transform: 0.0\nOldest transform: 0.0\n"];
+"d400_link" -> "d400_color_frame"[label=" Broadcaster: /play_1732180334911907070\nAverage rate: 10000.0\nBuffer length: 0.0\nMost recent transform: 0.0\nOldest transform: 0.0\n"];
+"d400_aligned_depth_to_color_frame" -> "d400_color_optical_frame"[label=" Broadcaster: /play_1732180334911907070\nAverage rate: 10000.0\nBuffer length: 0.0\nMost recent transform: 0.0\nOldest transform: 0.0\n"];
+"d400_link" -> "d400_aligned_depth_to_color_frame"[label=" Broadcaster: /play_1732180334911907070\nAverage rate: 10000.0\nBuffer length: 0.0\nMost recent transform: 0.0\nOldest transform: 0.0\n"];
+"t265_pose_frame" -> "t265_link"[label=" Broadcaster: /play_1732180334911907070\nAverage rate: 10000.0\nBuffer length: 0.0\nMost recent transform: 0.0\nOldest transform: 0.0\n"];
+"t265_odom_frame" -> "t265_pose_frame"[label=" Broadcaster: /play_1732180334911907070\nAverage rate: 200.089\nBuffer length: 4.998\nMost recent transform: 1729505361.344\nOldest transform: 1729505356.346\n"];
+"map" -> "odom"[label=" Broadcaster: /a\nAverage rate: 10000.0\nBuffer length: 0.0\nMost recent transform: 0.0\nOldest transform: 0.0\n"];
+"map" -> "t265_odom_frame"[label=" Broadcaster: /play_1732180334911907070\nAverage rate: 20.202\nBuffer length: 4.95\nMost recent transform: 1729505361.447\nOldest transform: 1729505356.497\n"];
+"base_link" -> "camera_link"[label=" Broadcaster: /tf_broadcaster\nAverage rate: 30.159\nBuffer length: 4.974\nMost recent transform: 1732180380.351\nOldest transform: 1732180375.377\n"];
+"odom" -> "base_link"[label=" Broadcaster: /tf_broadcaster\nAverage rate: 201.576\nBuffer length: 4.986\nMost recent transform: 1732180380.365\nOldest transform: 1732180375.38\n"];
+edge [style=invis];
+ subgraph cluster_legend { style=bold; color=black; label ="view_frames Result";
+"Recorded at time: 1732180380.3746994"[ shape=plaintext ] ;
+}->"map";
+}

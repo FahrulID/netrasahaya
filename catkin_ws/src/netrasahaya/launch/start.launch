@@ -9,10 +9,12 @@
     <node pkg="netrasahaya" type="tf_broadcaster.py" name="tf_broadcaster" output="screen"></node>
     <!-- <node pkg="tf2_ros" type="static_transform_publisher" name="b" args="0 0 0 0 -1.5708 1.5708 camera_link camera_scan" /> --> <!-- z front y up x right -->
 
-    <node pkg="tf2_ros" type="static_transform_publisher" name="ed" args="0 0 0 0 0 0 odom base_link" /> 
+    <!-- <node pkg="tf2_ros" type="static_transform_publisher" name="ed" args="0 0 0 0 0 0 odom base_link" />  -->
     <!-- <node pkg="tf2_ros" type="static_transform_publisher" name="e" args="0 0 0 0 0 0 base_link camera_scan" /> -->
 
-    <include file="$(find netrasahaya)/launch/depth_to_laser.launch"></include>
+    <node pkg="tf2_ros" type="static_transform_publisher" name="kiri" args="1 0 0 0 0 0 base_link depan" /> <!-- x front, y left -->
+
+    <!-- <include file="$(find netrasahaya)/launch/depth_to_laser.launch"></include> -->
 
     <include file="$(find netrasahaya)/launch/move_base.launch"></include>
 </launch>
