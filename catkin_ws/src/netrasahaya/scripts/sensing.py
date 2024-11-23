@@ -3,11 +3,12 @@ import rospy
 import tf2_ros
 import tf_conversions
 from geometry_msgs.msg import Pose
+from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import Point
 from nav_msgs.msg import OccupancyGrid
 from nav_msgs.msg import Odometry
 import message_filters
 from std_msgs.msg import Int32
-from geometry_msgs.msg import PoseStamped
 import numpy as np
 
 def quat_rotate(rotation, vector):
@@ -28,39 +29,32 @@ def quat_rotate(rotation, vector):
     q = tf_conversions.transformations.quaternion_multiply(q, tf_conversions.transformations.quaternion_inverse(rotation))
     return [q[0], q[1], q[2]]
 
-def rotate_pose(pose, rx, ry, rz):
-    position = [pose.position.x, pose.position.y, pose.position.z]
-    orientation = [pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w]
+def rotate_point(point: Point, rx: float, ry: float, rz: float) -> Point:
+    if not isinstance(point, Point):
+        raise ValueError("point must be a Point")
+
+    position = [point.x, point.y, point.z]
     rot_matrix = tf_conversions.transformations.euler_matrix(rx, ry, rz, 'rxyz')
     q_rot = tf_conversions.transformations.quaternion_from_matrix(rot_matrix)
 
     new_position = quat_rotate(q_rot, position)
-    new_orientation = tf_conversions.transformations.quaternion_multiply(orientation, q_rot)
 
-    new_pose = Pose()
-    new_pose.position.x = new_position[0]
-    new_pose.position.y = new_position[1]
-    new_pose.position.z = new_position[2]
-    new_pose.orientation.x = new_orientation[0]
-    new_pose.orientation.y = new_orientation[1]
-    new_pose.orientation.z = new_orientation[2]
-    new_pose.orientation.w = new_orientation[3]
+    return Point(x=new_position[0], y=new_position[1], z=new_position[2])
 
-    return new_pose
+def local_to_global(pose: Pose, point: Point) -> Pose:
+    if not isinstance(pose, Pose):
+        raise ValueError("pose must be a Pose")
+    
+    if not isinstance(point, Point):
+        raise ValueError("point must be a Point")
 
-def local_to_global(pose, x, y, z):
     yaw = get_euler_pose(pose)[5]
 
-    new_pose = Pose()
-    new_pose.position.x = x
-    new_pose.position.y = y
-    new_pose.position.z = z
-
-    new_pose = rotate_pose(new_pose, 0, 0, yaw)
+    new_point = rotate_point(point, 0, 0, yaw)
 
     rotated_pose = Pose()
-    rotated_pose.position.x = pose.position.x + new_pose.position.x
-    rotated_pose.position.y = pose.position.y + new_pose.position.y
+    rotated_pose.position.x = pose.position.x + new_point.x
+    rotated_pose.position.y = pose.position.y + new_point.y
     rotated_pose.position.z = pose.position.z
 
     return rotated_pose
@@ -109,31 +103,43 @@ def occupancygrid_to_numpy(msg):
 
     return np.ma.array(data, mask=data==-1, fill_value=-1)
 
-def raycast_occupancy_check(pose, occupancy_grid, distance=1.0):
+def raycast_occupancy_check(pose, occupancy_grid, distance=1.0, theta=0.0):
     
     map_data = occupancygrid_to_numpy(occupancy_grid)
     
     # Convert start and end points to grid indices
     x, y, z, roll, pitch, yaw = get_euler_pose(pose)
 
+    # Rotate the ray by theta
+    full_point = Point(x=distance, y=0, z=0)
+    rotated_full_point = rotate_point(full_point, 0, 0, theta)
+
+    half_point = Point(x=distance/2, y=0, z=0)
+    rotated_half_point = rotate_point(half_point, 0, 0, theta)
+
     start_x, start_y = world_to_grid(x, y, occupancy_grid.info)
-    half_pose = local_to_global(pose, distance/2, 0, 0)
-    end_pose = local_to_global(pose, distance, 0, 0)
+
+    half_pose = local_to_global(pose, rotated_half_point)
+
+    end_pose = local_to_global(pose, rotated_full_point)
+
     half_x = half_pose.position.x
     half_y = half_pose.position.y
     end_x = end_pose.position.x
     end_y = end_pose.position.y
+
     half_grid_x, half_grid_y = world_to_grid(half_x, half_y, occupancy_grid.info)
     end_grid_x, end_grid_y = world_to_grid(end_x, end_y, occupancy_grid.info)
 
-    # kiri_pose = PoseStamped()
-    # kiri_pose.header.stamp = rospy.Time.now()
-    # kiri_pose.header.frame_id = 'map'
-    # kiri_pose.pose.position.x = end_x
-    # kiri_pose.pose.position.y = end_y
-    # kiri_pose.pose.position.z = pose.position.z
-
-    # kiri_pose_pub.publish(kiri_pose)
+    # DEBUGGING
+    pose_to_check = PoseStamped()
+    pose_to_check.header.stamp = rospy.Time.now()
+    pose_to_check.header.frame_id = 'map'
+    pose_to_check.pose.position.x = end_x
+    pose_to_check.pose.position.y = end_y
+    pose_to_check.pose.position.z = pose.position.z
+    pose_to_check.pose.orientation = pose.orientation
+    # DEBUGGING
     
     # Bresenham's line algorithm
     line_start_half = bresenham(start_x, start_y, half_grid_x, half_grid_y)
@@ -161,7 +167,7 @@ def raycast_occupancy_check(pose, occupancy_grid, distance=1.0):
         if map_data[line_y, line_x] > 0:
             severity = 1
     
-    return severity
+    return severity, pose_to_check
 
 odom = Odometry()
 occupancy = OccupancyGrid()
@@ -183,8 +189,11 @@ if __name__ == '__main__':
     kiri_pub = rospy.Publisher('/kiri', Int32, queue_size=10) # 0 = tidak ada, 1 = ada pada jarak 0.5m, 2 = ada pada jarak 1m
     kiri_pose_pub = rospy.Publisher('/kiri_pose', PoseStamped, queue_size=10)
     kanan_pub = rospy.Publisher('/kanan', Int32, queue_size=10) # 0 = tidak ada, 1 = ada pada jarak 0.5m, 2 = ada pada jarak 1m
+    kanan_pose_pub = rospy.Publisher('/kanan_pose', PoseStamped, queue_size=10)
     depan_kiri_pub = rospy.Publisher('/depan_kiri', Int32, queue_size=10) # 0 = tidak ada, 1 = ada pada jarak 0.5m, 2 = ada pada jarak 1m
+    depan_kiri_pose_pub = rospy.Publisher('/depan_kiri_pose', PoseStamped, queue_size=10)
     depan_kanan_pub = rospy.Publisher('/depan_kanan', Int32, queue_size=10) # 0 = tidak ada, 1 = ada pada jarak 0.5m, 2 = ada pada jarak 1m
+    depan_kanan_pose_pub = rospy.Publisher('/depan_kanan_pose', PoseStamped, queue_size=10)
 
     tfBuffer = tf2_ros.Buffer()
     listener = tf2_ros.TransformListener(tfBuffer)
@@ -200,13 +209,27 @@ if __name__ == '__main__':
             # kiri_pose.header.frame_id = 'map'
             # kiri_pose.pose = local_to_global(odom.pose.pose, 1, 0, 0)
 
-            # # kiri_pose.pose = rotate_pose(kiri_pose.pose, 0, 0, math.pi/2)
+            # # kiri_pose.pose = rotate_point(kiri_pose.pose, 0, 0, math.pi/2)
 
             # kiri_pose_pub.publish(kiri_pose)
 
-            kiri_severity = raycast_occupancy_check(odom.pose.pose, occupancy)
+            kiri_severity, kiri_pose = raycast_occupancy_check(odom.pose.pose, occupancy, 1, math.pi*7/16)
+            kiri_pub.publish(kiri_severity)
+            kiri_pose_pub.publish(kiri_pose)
 
-            rospy.loginfo(f'Kiri severity: {kiri_severity}')
+            kanan_severity, kanan_pose = raycast_occupancy_check(odom.pose.pose, occupancy, 1, -math.pi*7/16)
+            kanan_pub.publish(kanan_severity)
+            kanan_pose_pub.publish(kanan_pose)
+
+            depan_kiri_severity, depan_kiri_pose = raycast_occupancy_check(odom.pose.pose, occupancy, 1, math.pi*2/16)
+            depan_kiri_pub.publish(depan_kiri_severity)
+            depan_kiri_pose_pub.publish(depan_kiri_pose)
+
+            depan_kanan_severity, depan_kanan_pose = raycast_occupancy_check(odom.pose.pose, occupancy, 1, -math.pi*2/16)
+            depan_kanan_pub.publish(depan_kanan_severity)
+            depan_kanan_pose_pub.publish(depan_kanan_pose)
+
+            rospy.loginfo(f'Kiri: {kiri_severity}, Kanan: {kanan_severity}, Depan Kiri: {depan_kiri_severity}, Depan Kanan: {depan_kanan_severity}')
 
             rate.sleep()
         except rospy.ROSInterruptException:
