@@ -2,14 +2,17 @@ import math
 import rospy
 import tf2_ros
 import tf_conversions
-from geometry_msgs.msg import Pose
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import Pose, PoseStamped
 from geometry_msgs.msg import Point
+from geometry_msgs.msg import PolygonStamped, Polygon, Point32
 from nav_msgs.msg import OccupancyGrid
 from nav_msgs.msg import Odometry
 import message_filters
 from std_msgs.msg import Int32
 import numpy as np
+
+class SensingDisabled(Exception):
+    pass
 
 def quat_rotate(rotation, vector):
     """
@@ -98,58 +101,97 @@ def bresenham(x0, y0, x1, y1):
             y0 += sy
     return points
 
+def fill_polygon(polygon_edges):
+    """Fills the interior of the polygon."""
+    filled_points = set()
+    # Group points by rows (y-coordinates)
+    edge_points_by_row = {}
+    for x, y in polygon_edges:
+        edge_points_by_row.setdefault(y, []).append(x)
+    
+    # Sort each row's points by x-coordinate
+    for y in edge_points_by_row:
+        edge_points_by_row[y].sort()
+
+    # Fill between edge pairs on each row
+    for y, x_points in edge_points_by_row.items():
+        for i in range(0, len(x_points) - 1, 2):
+            x_start, x_end = x_points[i], x_points[i + 1]
+            for x in range(x_start, x_end + 1):
+                filled_points.add((x, y))
+    
+    return filled_points
+
+def bresenham_polygon_with_fill(points):
+    """
+    Draws a polygon using Bresenham's line algorithm and fills the interior.
+    Expects `points` to be a list of (x, y) tuples representing the vertices of the polygon.
+    """
+    # Step 1: Draw the polygon edges
+    polygon_edges = []
+    num_points = len(points)
+    for i in range(num_points):
+        x0, y0 = points[i]
+        x1, y1 = points[(i + 1) % num_points]  # Wraps around to the first point
+        polygon_edges.extend(bresenham(x0, y0, x1, y1))
+
+    # Step 2: Fill the polygon interior
+    filled_points = fill_polygon(polygon_edges)
+
+    # Combine edges and filled points
+    return list(filled_points.union(polygon_edges))
+
 def occupancygrid_to_numpy(msg):
     data = np.asarray(msg.data, dtype=np.int8).reshape(msg.info.height, msg.info.width)
 
     return np.ma.array(data, mask=data==-1, fill_value=-1)
 
-def raycast_occupancy_check(pose, occupancy_grid, distance=1.0, theta=0.0):
+def raycast_occupancy_check(pose, occupancy_grid, distance=1.0, theta=0.0, theta_range=0.0):
     
     map_data = occupancygrid_to_numpy(occupancy_grid)
     
     # Convert start and end points to grid indices
     x, y, z, roll, pitch, yaw = get_euler_pose(pose)
 
-    # Rotate the ray by theta
-    full_point = Point(x=distance, y=0, z=0)
-    rotated_full_point = rotate_point(full_point, 0, 0, theta)
+    # Get 5 points of polygon to be checked
+    point1 = Point(x=0, y=0, z=0)
+    point2 = rotate_point(Point(x=distance, y=0, z=0), 0, 0, theta + theta_range)
+    point3 = rotate_point(Point(x=distance, y=0, z=0), 0, 0, theta - theta_range)
+    halfpoint2 = rotate_point(Point(x=distance/2, y=0, z=0), 0, 0, theta + theta_range)
+    halfpoint3 = rotate_point(Point(x=distance/2, y=0, z=0), 0, 0, theta - theta_range)
 
-    half_point = Point(x=distance/2, y=0, z=0)
-    rotated_half_point = rotate_point(half_point, 0, 0, theta)
+    # Local to global
+    point1_pose = local_to_global(pose, point1)
+    point2_pose = local_to_global(pose, point2)
+    point3_pose = local_to_global(pose, point3)
+    halfpoint2_pose = local_to_global(pose, halfpoint2)
+    halfpoint3_pose = local_to_global(pose, halfpoint3)
 
-    start_x, start_y = world_to_grid(x, y, occupancy_grid.info)
+    # Point to grid
+    point1_grid_x, point1_grid_y = world_to_grid(point1_pose.position.x, point1_pose.position.y, occupancy_grid.info)
+    point2_grid_x, point2_grid_y = world_to_grid(point2_pose.position.x, point2_pose.position.y, occupancy_grid.info)
+    point3_grid_x, point3_grid_y = world_to_grid(point3_pose.position.x, point3_pose.position.y, occupancy_grid.info)
+    halfpoint2_grid_x, halfpoint2_grid_y = world_to_grid(halfpoint2_pose.position.x, halfpoint2_pose.position.y, occupancy_grid.info)
+    halfpoint3_grid_x, halfpoint3_grid_y = world_to_grid(halfpoint3_pose.position.x, halfpoint3_pose.position.y, occupancy_grid.info)
 
-    half_pose = local_to_global(pose, rotated_half_point)
-
-    end_pose = local_to_global(pose, rotated_full_point)
-
-    half_x = half_pose.position.x
-    half_y = half_pose.position.y
-    end_x = end_pose.position.x
-    end_y = end_pose.position.y
-
-    half_grid_x, half_grid_y = world_to_grid(half_x, half_y, occupancy_grid.info)
-    end_grid_x, end_grid_y = world_to_grid(end_x, end_y, occupancy_grid.info)
-
-    # DEBUGGING
-    pose_to_check = PoseStamped()
-    pose_to_check.header.stamp = rospy.Time.now()
-    pose_to_check.header.frame_id = 'map'
-    pose_to_check.pose.position.x = end_x
-    pose_to_check.pose.position.y = end_y
-    pose_to_check.pose.position.z = pose.position.z
-    pose_to_check.pose.orientation = pose.orientation
-    # DEBUGGING
+    # VISUALIZATION
+    polygon = PolygonStamped()
+    polygon.header.frame_id = 'map'
+    polygon.header.stamp = rospy.Time.now()
+    polygon.polygon = Polygon([Point32(x=point1_pose.position.x, y=point1_pose.position.y, z=pose.position.z), Point32(x=point2_pose.position.x, y=point2_pose.position.y, z=pose.position.z), Point32(x=point3_pose.position.x, y=point3_pose.position.y, z=pose.position.z), Point32(x=halfpoint3_pose.position.x, y=halfpoint3_pose.position.y, z=pose.position.z), Point32(x=halfpoint2_pose.position.x, y=halfpoint2_pose.position.y, z=pose.position.z), Point32(x=halfpoint3_pose.position.x, y=halfpoint3_pose.position.y, z=pose.position.z)])
+    # VISUALIZATION
     
     # Bresenham's line algorithm
-    line_start_half = bresenham(start_x, start_y, half_grid_x, half_grid_y)
-    line_half_end = bresenham(half_grid_x, half_grid_y, end_grid_x, end_grid_y)
+    # line_start_half = bresenham(start_x, start_y, half_grid_x, half_grid_y)
+    # line_half_end = bresenham(half_grid_x, half_grid_y, end_grid_x, end_grid_y)
+    near_points = bresenham_polygon_with_fill([(point1_grid_x, point1_grid_y), (halfpoint2_grid_x, halfpoint2_grid_y), (halfpoint3_grid_x, halfpoint3_grid_y)])
+    far_points = bresenham_polygon_with_fill([(halfpoint2_grid_x, halfpoint2_grid_y), (point2_grid_x, point2_grid_y), (point3_grid_x, point3_grid_y), (halfpoint3_grid_x, halfpoint3_grid_y)])
 
     # Severity of the obstacle, 0 means no obstacle, 1 means obstacle at 0.5m, 2 means obstacle at 1m
     severity = 0
     
     # Check each cell in the ray
-    for line_x, line_y in line_half_end:
+    for line_x, line_y in far_points:
         # check if the cell is within the map
         if line_x < 0 or line_y < 0 or line_x >= map_data.shape[1] or line_y >= map_data.shape[0]:
             continue
@@ -157,8 +199,9 @@ def raycast_occupancy_check(pose, occupancy_grid, distance=1.0, theta=0.0):
         # Check if the cell is occupied
         if map_data[line_y, line_x] > 0:
             severity = 2
+            break
 
-    for line_x, line_y in line_start_half:
+    for line_x, line_y in near_points:
         # check if the cell is within the map
         if line_x < 0 or line_y < 0 or line_x >= map_data.shape[1] or line_y >= map_data.shape[0]:
             continue
@@ -166,8 +209,9 @@ def raycast_occupancy_check(pose, occupancy_grid, distance=1.0, theta=0.0):
         # Check if the cell is occupied
         if map_data[line_y, line_x] > 0:
             severity = 1
+            break
     
-    return severity, pose_to_check
+    return severity, polygon
 
 odom = Odometry()
 occupancy = OccupancyGrid()
@@ -187,13 +231,13 @@ if __name__ == '__main__':
     ts.registerCallback(callback)
 
     kiri_pub = rospy.Publisher('/kiri', Int32, queue_size=10) # 0 = tidak ada, 1 = ada pada jarak 0.5m, 2 = ada pada jarak 1m
-    kiri_pose_pub = rospy.Publisher('/kiri_pose', PoseStamped, queue_size=10)
+    kiri_polygon_pub = rospy.Publisher('/kiri_pose', PolygonStamped, queue_size=10)
     kanan_pub = rospy.Publisher('/kanan', Int32, queue_size=10) # 0 = tidak ada, 1 = ada pada jarak 0.5m, 2 = ada pada jarak 1m
-    kanan_pose_pub = rospy.Publisher('/kanan_pose', PoseStamped, queue_size=10)
+    kanan_polygon_pub = rospy.Publisher('/kanan_pose', PolygonStamped, queue_size=10)
     depan_kiri_pub = rospy.Publisher('/depan_kiri', Int32, queue_size=10) # 0 = tidak ada, 1 = ada pada jarak 0.5m, 2 = ada pada jarak 1m
-    depan_kiri_pose_pub = rospy.Publisher('/depan_kiri_pose', PoseStamped, queue_size=10)
+    depan_kiri_polygon_pub = rospy.Publisher('/depan_kiri_pose', PolygonStamped, queue_size=10)
     depan_kanan_pub = rospy.Publisher('/depan_kanan', Int32, queue_size=10) # 0 = tidak ada, 1 = ada pada jarak 0.5m, 2 = ada pada jarak 1m
-    depan_kanan_pose_pub = rospy.Publisher('/depan_kanan_pose', PoseStamped, queue_size=10)
+    depan_kanan_polygon_pub = rospy.Publisher('/depan_kanan_pose', PolygonStamped, queue_size=10)
 
     tfBuffer = tf2_ros.Buffer()
     listener = tf2_ros.TransformListener(tfBuffer)
@@ -202,37 +246,41 @@ if __name__ == '__main__':
     
     while not rospy.is_shutdown():
         try:
-            # x, y, z, roll, pitch, yaw = get_euler_pose(odom.pose.pose)
+            enabled = rospy.get_param('~enabled', False)
 
-            # kiri_pose = PoseStamped()
-            # kiri_pose.header.stamp = rospy.Time.now()
-            # kiri_pose.header.frame_id = 'map'
-            # kiri_pose.pose = local_to_global(odom.pose.pose, 1, 0, 0)
+            if not enabled:
+                rospy.loginfo(enabled)
+                raise SensingDisabled('Sensing is disabled')
+            
+            theta1 = math.pi*1/2 - math.pi*1/8 # 90 - 22.5 = 67.5 degree
+            theta2 = math.pi*1/2 - math.pi*3/8 # 90 - 67.5 = 22.5 degree
+            theta_range = math.pi*1/8
 
-            # # kiri_pose.pose = rotate_point(kiri_pose.pose, 0, 0, math.pi/2)
-
-            # kiri_pose_pub.publish(kiri_pose)
-
-            kiri_severity, kiri_pose = raycast_occupancy_check(odom.pose.pose, occupancy, 1, math.pi*7/16)
+            kiri_severity, kiri_polygon = raycast_occupancy_check(odom.pose.pose, occupancy, 1, theta1, theta_range)
             kiri_pub.publish(kiri_severity)
-            kiri_pose_pub.publish(kiri_pose)
+            kiri_polygon_pub.publish(kiri_polygon)
 
-            kanan_severity, kanan_pose = raycast_occupancy_check(odom.pose.pose, occupancy, 1, -math.pi*7/16)
+            kanan_severity, kanan_polygon = raycast_occupancy_check(odom.pose.pose, occupancy, 1, -theta1, theta_range)
             kanan_pub.publish(kanan_severity)
-            kanan_pose_pub.publish(kanan_pose)
+            kanan_polygon_pub.publish(kanan_polygon)
 
-            depan_kiri_severity, depan_kiri_pose = raycast_occupancy_check(odom.pose.pose, occupancy, 1, math.pi*2/16)
+            depan_kiri_severity, depan_kiri_polygon = raycast_occupancy_check(odom.pose.pose, occupancy, 1, theta2, theta_range)
             depan_kiri_pub.publish(depan_kiri_severity)
-            depan_kiri_pose_pub.publish(depan_kiri_pose)
+            depan_kiri_polygon_pub.publish(depan_kiri_polygon)
 
-            depan_kanan_severity, depan_kanan_pose = raycast_occupancy_check(odom.pose.pose, occupancy, 1, -math.pi*2/16)
+            depan_kanan_severity, depan_kanan_polygon = raycast_occupancy_check(odom.pose.pose, occupancy, 1, -theta2, theta_range)
             depan_kanan_pub.publish(depan_kanan_severity)
-            depan_kanan_pose_pub.publish(depan_kanan_pose)
+            depan_kanan_polygon_pub.publish(depan_kanan_polygon)
 
-            rospy.loginfo(f'Kiri: {kiri_severity}, Kanan: {kanan_severity}, Depan Kiri: {depan_kiri_severity}, Depan Kanan: {depan_kanan_severity}')
-
-            rate.sleep()
+            rospy.loginfo(f'Kiri: {kiri_severity}, Depan Kiri: {depan_kiri_severity}, Depan Kanan: {depan_kanan_severity}, Kanan: {kanan_severity}')
+        except SensingDisabled:
+            rospy.loginfo('Sensing is disabled')        
         except rospy.ROSInterruptException:
             break
+        except Exception as e:
+            rospy.logerr(e)
+            break
+        
+        rate.sleep()
 
     exit(0)
