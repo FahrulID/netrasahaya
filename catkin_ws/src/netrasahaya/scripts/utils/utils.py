@@ -73,6 +73,11 @@ def align_pose(pose1: Pose, pose2: Pose) -> Pose:
     :return: the relative pose (use it by multiplying your pose orientation with the relative orientation, and translate your pose position with the relative position)
     """
     # Note development: pose1 untuk /rtabmap/localization_pose, pose2 untuk /odom
+    if not isinstance(pose1, Pose):
+        raise ValueError("pose1 must be a Pose")
+    
+    if not isinstance(pose2, Pose):
+        raise ValueError("pose2 must be a Pose")
 
     position1 = [pose1.position.x, pose1.position.y, pose1.position.z]
     orientation1 = [pose1.orientation.x, pose1.orientation.y, pose1.orientation.z, pose1.orientation.w]

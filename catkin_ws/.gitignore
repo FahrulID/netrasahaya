@@ -6,3 +6,4 @@ devel/
 **.pyc
 .catkin_tools
 logs/
+*.bag

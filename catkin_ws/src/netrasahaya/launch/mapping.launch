@@ -1,0 +1,15 @@
+<launch>
+    <include file="$(find rtabmap_launch)/launch/rtabmap.launch">
+        <arg name="args" value="--delete_db_on_start --Mem/UseOdomGravity true --Optimizer/GravitySigma 0.3"/>
+        <arg name="odom_topic" value="/t265/odom/sample"/>
+        <arg name="frame_id" value="t265_link"/>
+        <arg name="rgbd_sync" value="true"/>
+        <arg name="depth_topic" value="/d400/aligned_depth_to_color/image_raw"/>
+        <arg name="rgb_topic" value="/d400/color/image_raw"/>
+        <arg name="camera_info_topic" value="/d400/color/camera_info"/>
+        <arg name="approx_rgbd_sync" value="false"/>
+        <arg name="visual_odometry" value="false"/>
+        <arg name="queue_size" value="30"/>
+        <arg name="rviz" value="true"/>
+    </include>
+</launch>

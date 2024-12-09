@@ -17,6 +17,10 @@ Panels:
         - /Map4
         - /Path1
         - /WrenchStamped1
+        - /Polygon2
+        - /Polygon3
+        - /Polygon4
+        - /Polygon5
       Splitter Ratio: 0.5
     Tree Height: 734
   - Class: rviz/Selection
@@ -131,6 +135,8 @@ Visualization Manager:
           Value: false
         depan:
           Value: true
+        global_map:
+          Value: true
         map:
           Value: true
         odom:
@@ -149,6 +155,8 @@ Visualization Manager:
       Show Names: true
       Tree:
         map:
+          global_map:
+            {}
           odom:
             base_link:
               camera_link:
@@ -486,7 +494,7 @@ Visualization Manager:
       Value: true
     - Alpha: 1
       Class: rviz/Polygon
-      Color: 25; 255; 0
+      Color: 255; 255; 0
       Enabled: true
       Name: Polygon
       Queue Size: 10
@@ -495,7 +503,7 @@ Visualization Manager:
       Value: true
     - Alpha: 1
       Class: rviz/Polygon
-      Color: 25; 255; 0
+      Color: 255; 255; 0
       Enabled: true
       Name: Polygon
       Queue Size: 10
@@ -504,7 +512,7 @@ Visualization Manager:
       Value: true
     - Alpha: 1
       Class: rviz/Polygon
-      Color: 25; 255; 0
+      Color: 255; 255; 0
       Enabled: true
       Name: Polygon
       Queue Size: 10
@@ -513,11 +521,42 @@ Visualization Manager:
       Value: true
     - Alpha: 1
       Class: rviz/Polygon
-      Color: 25; 255; 0
+      Color: 255; 255; 0
       Enabled: true
       Name: Polygon
       Queue Size: 10
       Topic: /kiri_pose
+      Unreliable: false
+      Value: true
+    - Alpha: 1
+      Axes Length: 1
+      Axes Radius: 0.10000000149011612
+      Class: rviz/PoseWithCovariance
+      Color: 255; 25; 0
+      Covariance:
+        Orientation:
+          Alpha: 0.5
+          Color: 255; 255; 127
+          Color Style: Unique
+          Frame: Local
+          Offset: 1
+          Scale: 1
+          Value: true
+        Position:
+          Alpha: 0.30000001192092896
+          Color: 204; 51; 204
+          Scale: 1
+          Value: true
+        Value: true
+      Enabled: true
+      Head Length: 0.30000001192092896
+      Head Radius: 0.10000000149011612
+      Name: PoseWithCovariance
+      Queue Size: 10
+      Shaft Length: 1
+      Shaft Radius: 0.05000000074505806
+      Shape: Arrow
+      Topic: /rtabmap/localization_pose
       Unreliable: false
       Value: true
   Enabled: true
@@ -548,7 +587,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 6.744187355041504
+      Distance: 31.669483184814453
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -556,17 +595,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 0.6191186904907227
-        Y: -2.106154441833496
-        Z: -1.1776522397994995
+        X: 7.47997522354126
+        Y: -0.4500611424446106
+        Z: -1.4764810800552368
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.9297963976860046
+      Pitch: 1.1447967290878296
       Target Frame: <Fixed Frame>
-      Yaw: 4.400397300720215
+      Yaw: 4.697249889373779
     Saved: ~
 Window Geometry:
   Displays:

@@ -33,13 +33,6 @@ def raycast_occupancy_check(pose, occupancy_grid, distance=1.0, theta=0.0, theta
     point3_grid_x, point3_grid_y = utils.world_to_grid(point3_pose.position.x, point3_pose.position.y, occupancy_grid.info)
     halfpoint2_grid_x, halfpoint2_grid_y = utils.world_to_grid(halfpoint2_pose.position.x, halfpoint2_pose.position.y, occupancy_grid.info)
     halfpoint3_grid_x, halfpoint3_grid_y = utils.world_to_grid(halfpoint3_pose.position.x, halfpoint3_pose.position.y, occupancy_grid.info)
-
-    # VISUALIZATION
-    polygon = PolygonStamped()
-    polygon.header.frame_id = 'map'
-    polygon.header.stamp = rospy.Time.now()
-    polygon.polygon = Polygon([Point32(x=point1_pose.position.x, y=point1_pose.position.y, z=pose.position.z), Point32(x=point2_pose.position.x, y=point2_pose.position.y, z=pose.position.z), Point32(x=point3_pose.position.x, y=point3_pose.position.y, z=pose.position.z), Point32(x=halfpoint3_pose.position.x, y=halfpoint3_pose.position.y, z=pose.position.z), Point32(x=halfpoint2_pose.position.x, y=halfpoint2_pose.position.y, z=pose.position.z), Point32(x=halfpoint3_pose.position.x, y=halfpoint3_pose.position.y, z=pose.position.z)])
-    # VISUALIZATION
     
     # Bresenham's line algorithm
     # line_start_half = bresenham(start_x, start_y, half_grid_x, half_grid_y)
@@ -70,6 +63,33 @@ def raycast_occupancy_check(pose, occupancy_grid, distance=1.0, theta=0.0, theta
         if map_data[line_y, line_x] > 0:
             severity = 1
             break
+
+    # VISUALIZATION
+    polygon = PolygonStamped()
+    polygon.header.frame_id = 'map'
+    polygon.header.stamp = rospy.Time.now()
+    points = []
+    points.append(Point32(x=point1_pose.position.x, y=point1_pose.position.y, z=pose.position.z))
+    points.append(Point32(x=point2_pose.position.x, y=point2_pose.position.y, z=pose.position.z))
+
+    points.append(Point32(x=point3_pose.position.x, y=point3_pose.position.y, z=pose.position.z))
+    points.append(Point32(x=halfpoint3_pose.position.x, y=halfpoint3_pose.position.y, z=pose.position.z))
+    points.append(Point32(x=halfpoint2_pose.position.x, y=halfpoint2_pose.position.y, z=pose.position.z))
+    points.append(Point32(x=halfpoint3_pose.position.x, y=halfpoint3_pose.position.y, z=pose.position.z))
+    points.append(Point32(x=point1_pose.position.x, y=point1_pose.position.y, z=pose.position.z))
+
+    vis_point = utils.rotate_point(Point(x=distance/2, y=0, z=0), 0, 0, theta)
+    vis_point2 = utils.rotate_point(Point(x=distance, y=0, z=0), 0, 0, theta)
+    vis_point = utils.local_to_global(pose, vis_point)
+    vis_point2 = utils.local_to_global(pose, vis_point2)
+
+    if(severity == 1):
+        points.append(Point32(x=vis_point.position.x, y=vis_point.position.y, z=pose.position.z))
+    elif(severity == 2):
+        points.append(Point32(x=vis_point2.position.x, y=vis_point2.position.y, z=pose.position.z))
+
+    polygon.polygon = Polygon(points)
+    # VISUALIZATION
     
     return severity, polygon
 

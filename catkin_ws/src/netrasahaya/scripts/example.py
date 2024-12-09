@@ -3,8 +3,10 @@ from nav_msgs.msg import OccupancyGrid
 from geometry_msgs.msg import PoseStamped
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 import actionlib
+import tf_conversions
+import math
 
-import utils.utils
+import utils.utils as utils
 
 def go_to_goal(goal_x, goal_y):
     # Start a connection to the move_base action server
@@ -36,4 +38,16 @@ if __name__ == '__main__':
     # Let's say the goal is at (5, 5) in the map
     # go_to_goal(5, 5)
 
-    print(utils.utils.get_relative_quaternion([0, 0, 0, 1], [0, 0, -0.707, 0.707]))  # Should print [0, 0, 1]
+    # print(utils.utils.get_relative_quaternion([0, 0, 0, 1], [0, 0, -0.707, 0.707]))  # Should print [0, 0, 1]
+
+    origin_position = [-2.950000, 3.900000, 0]
+    origin_orientation = [0, 0, -0.724,  0.690]
+
+    rot_matrix = tf_conversions.transformations.euler_matrix(0, 0, math.pi/2, 'rxyz')
+    q_rot = tf_conversions.transformations.quaternion_from_matrix(rot_matrix)
+
+    new_origin_position = utils.quat_rotate(q_rot, origin_position)
+    new_origin_orientation = tf_conversions.transformations.quaternion_multiply(origin_orientation, q_rot)
+
+    print(new_origin_position)
+    print(new_origin_orientation)

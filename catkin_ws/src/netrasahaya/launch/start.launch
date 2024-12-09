@@ -1,11 +1,14 @@
 <launch>
-    <arg name="map_file" default="$(find netrasahaya)/maps/mymap.yaml"/>
+    <!-- <arg name="map_file" default="$(find netrasahaya)/maps/sekre/sekre_baru.yaml"/> -->
+    <arg name="map_file" default="$(find netrasahaya)/maps/dataset/dataset1.yaml"/>
+    
     <node name="map_server" pkg="map_server" type="map_server" args="$(arg map_file)" />
 
     <include file="$(find occupancy)/launch/occupancy.launch"></include>
     <node name="rviz" pkg="rviz" type="rviz" args="-d $(find netrasahaya)/rviz/netrasahaya.rviz"></node>
 
     <node pkg="tf2_ros" type="static_transform_publisher" name="a" args="0 0 0 0 0 0 1 map odom" />
+    <node pkg="tf2_ros" type="static_transform_publisher" name="global_map" args="0 0 0 0 0 0 1 map global_map" />
     <node pkg="netrasahaya" type="tf_broadcaster.py" name="tf_broadcaster" output="screen"></node>
     <!-- <node pkg="tf2_ros" type="static_transform_publisher" name="b" args="0 0 0 0 -1.5708 1.5708 camera_link camera_scan" /> --> <!-- z front y up x right -->
 

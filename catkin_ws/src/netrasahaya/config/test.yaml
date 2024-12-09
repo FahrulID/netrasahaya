@@ -23,7 +23,7 @@ raytrace_range: 3.0
 
 global_costmap:
   transform_tolerance: 1000000000.000000
-  global_frame: map
+  global_frame: global_map
   robot_base_frame: base_link
   update_frequency: 5.0
   publish_frequency: 5.0
@@ -38,8 +38,7 @@ global_costmap:
     inflation_radius: 0.1
 
   static_map:
-    map_topic: /rtabmap/grid_map
-    subscribe_to_updates: true
+    map_topic: /map
     track_unknown_space: true
 
 local_costmap:
