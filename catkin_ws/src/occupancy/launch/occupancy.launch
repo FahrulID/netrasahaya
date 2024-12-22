@@ -4,6 +4,8 @@
   <param name="HeightOfInterestMax" value="0.5"/>
   <param name="DepthOfInterestMin" value="0.05"/>
   <param name="DepthOfInterestMax" value="3.0"/>
+  
+  <node pkg="tf2_ros" type="static_transform_publisher" name="t265_odom_frame_to_t265_occupancy_frame" args="0 0 0 0 0 0 t265_odom_frame t265_occupancy_frame" />
 
   <node name="occupancy_node" pkg="occupancy" type="occupancy_node" output="screen">
   </node>

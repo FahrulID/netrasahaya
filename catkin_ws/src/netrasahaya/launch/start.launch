@@ -1,23 +1,26 @@
 <launch>
-    <!-- <arg name="map_file" default="$(find netrasahaya)/maps/sekre/sekre_baru.yaml"/> -->
-    <arg name="map_file" default="$(find netrasahaya)/maps/dataset/dataset1.yaml"/>
-    
-    <node name="map_server" pkg="map_server" type="map_server" args="$(arg map_file)" />
+    <arg name="using_rosbag" default="true"/>
+    <arg name="rviz" default="true"/>
+    <arg name="localization" default="true"/>
+
+    <arg     if="$(arg localization)" name="pre_args" default=""/>
+    <arg unless="$(arg localization)" name="pre_args" default="--delete_db_on_start"/>
+
+    <group if="$(arg using_rosbag)">
+        <param name="use_sim_time" value="true"/>
+        <node pkg="rosbag" type="play" name="player" output="screen" args="--clock /home/fahrul/netrasahaya/catkin_ws/dataset3.bag"/>
+    </group>
 
     <include file="$(find occupancy)/launch/occupancy.launch"></include>
-    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find netrasahaya)/rviz/netrasahaya.rviz"></node>
 
-    <node pkg="tf2_ros" type="static_transform_publisher" name="a" args="0 0 0 0 0 0 1 map odom" />
-    <node pkg="tf2_ros" type="static_transform_publisher" name="global_map" args="0 0 0 0 0 0 1 map global_map" />
-    <node pkg="netrasahaya" type="tf_broadcaster.py" name="tf_broadcaster" output="screen"></node>
-    <!-- <node pkg="tf2_ros" type="static_transform_publisher" name="b" args="0 0 0 0 -1.5708 1.5708 camera_link camera_scan" /> --> <!-- z front y up x right -->
-
-    <!-- <node pkg="tf2_ros" type="static_transform_publisher" name="ed" args="0 0 0 0 0 0 odom base_link" />  -->
-    <!-- <node pkg="tf2_ros" type="static_transform_publisher" name="e" args="0 0 0 0 0 0 base_link camera_scan" /> -->
-
-    <node pkg="tf2_ros" type="static_transform_publisher" name="kiri" args="1 0 0 0 0 0 base_link depan" /> <!-- x front, y left -->
-
-    <!-- <include file="$(find netrasahaya)/launch/depth_to_laser.launch"></include> -->
-
+    <include file="$(find netrasahaya)/launch/rtabmap.launch">
+        <arg name="pre_args" value="$(arg pre_args)"/>
+        <arg name="localization" value="$(arg localization)"/>
+    </include>
+    
     <include file="$(find netrasahaya)/launch/move_base.launch"></include>
+    
+    <include file="$(find netrasahaya)/launch/rviz.launch">
+        <arg name="rviz" value="$(arg rviz)"/>
+    </include>
 </launch>

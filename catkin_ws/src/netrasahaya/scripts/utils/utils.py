@@ -41,7 +41,7 @@ def get_relative_quaternion(q1, q2):
     # Note development: q1 untuk /rtabmap/localization_pose, q2 untuk /odom
     # cara mendapatkan relative quaternion ada dua:
     # 1. q1 / q2
-    # 2. q1 * -q2 (q2 inverse/conjugation)
+    # 2. q1 * q2^-1 (q2 inverse/conjugation)
 
     q2_inv = tf_conversions.transformations.quaternion_inverse(q2)
     q_rot = tf_conversions.transformations.quaternion_multiply(q1, q2_inv)

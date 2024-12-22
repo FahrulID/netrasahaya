@@ -1,0 +1,21 @@
+controller_frequency: 10
+
+GlobalPlanner: # For list of available parameters, see http://wiki.ros.org/global_planner
+  allow_unknown: true # Specifies whether or not to allow the global planner to create plans that traverse unknown space.
+  default_tolerance: 0.1 # A tolerance on the goal point for the planner.
+  use_dijkstra: false # Specifies whether or not to use dijkstra's algorithm or A* for planning.
+  neutral_cost: 66 # The cost that the planner assigns to cells with no information.
+  lethal_cost: 253 # The cost that the planner assigns to cells with lethal obstacles.
+  cost_factor: 0.5
+
+# For list of available parameters, see http://wiki.ros.org/dwa_local_planner
+DWAPlannerROS:
+  max_vel_x: 1
+  min_vel_x: -1
+  max_vel_y: 1
+  min_vel_y: -1
+  min_rot_vel: 0.0
+  max_rot_vel: 0.0
+  acc_lim_theta: 0.0
+  yaw_goal_tolerance: 6.28 # Allowing complete rotation without correction
+

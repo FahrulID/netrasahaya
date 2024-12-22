@@ -1,18 +1,73 @@
 <launch>
-    <param name="use_sim_time" value="true"/>
+    <arg name="pre_args" default=""/>
+    <arg name="localization" default="true"/>
+    
+    <arg name="database_path" default="$(find netrasahaya)/maps/rtabmap.db"/>
+    <arg name="odom_topic" default="/t265/odom/sample"/>
+    <arg name="depth_topic" default="/d400/aligned_depth_to_color/image_raw"/>
+    <arg name="rgb_topic" default="/d400/color/image_raw"/>
+    <arg name="camera_info_topic" default="/d400/color/camera_info"/>
 
-    <include file="$(find rtabmap_launch)/launch/rtabmap.launch">
-        <arg name="args" value="--Mem/UseOdomGravity true --Optimizer/GravitySigma 0.3"/>
-        <arg name="odom_topic" value="/t265/odom/sample"/>
-        <arg name="frame_id" value="t265_link"/>
-        <arg name="rgbd_sync" value="true"/>
-        <arg name="depth_topic" value="/d400/aligned_depth_to_color/image_raw"/>
-        <arg name="rgb_topic" value="/d400/color/image_raw"/>
-        <arg name="camera_info_topic" value="/d400/color/camera_info"/>
-        <arg name="approx_rgbd_sync" value="false"/>
-        <arg name="visual_odometry" value="false"/>
-        <arg name="queue_size" value="30"/>
-        <arg name="rviz" value="false"/>
-        <arg name="localization" value="true"/>
-    </include>
+    <node pkg="tf2_ros" type="static_transform_publisher" name="map_to_odom" args="0 0 0 0 0 0 map odom" />
+    <node pkg="tf2_ros" type="static_transform_publisher" name="odom_to_t265_odom_frame" args="0 0 0 -1.5708 0 0 odom t265_odom_frame" />
+
+    <group>
+        <param name="RGBD/OptimizeSlam2D" type="string" value="true"/>
+        <param name="Mem/UseOdomGravity" type="string" value="true"/>
+        <param name="Rtabmap/DetectionRate" type="string" value="3"/>
+        <param name="Optimizer/GravitySigma" type="string" value="0.3"/>
+        <param name="Reg/Force3DoF" type="string" value="true"/>
+
+        <!-- GRID -->
+        <param name="Grid/3D" type="string" value="false" />
+        <param name="Grid/CellSize" type="string" value="0.05" />
+        <param name="Grid/ClusterRadius" type="string" value="0.1" />
+        <param name="Grid/DepthDecimation" type="string" value="4" />
+        <param name="Grid/DepthMax" type="string" value="3.0" />
+        <param name="Grid/DepthMin" type="string" value="0.05" />
+        <param name="Grid/DepthRoiRatios" type="string" value="0.0 0.0 0.0 0.0" />
+        <param name="Grid/FlatObstacleDetected" type="string" value="true" />
+        <param name="Grid/FootprintHeight" type="string" value="1.6" />
+        <param name="Grid/FootprintLength" type="string" value="0.1" />
+        <param name="Grid/FootprintWidth" type="string" value="0.1" />
+        <param name="Grid/FromDepth" type="string" value="true" />
+        <param name="Grid/GroundIsObstacle" type="string" value="false" />
+        <param name="Grid/MapFrameProjection" type="string" value="false" />
+        <param name="Grid/MaxGroundAngle" type="string" value="45" />
+        <param name="Grid/MaxGroundHeight" type="string" value="0.05" />
+        <param name="Grid/MaxObstacleHeight" type="string" value="2.0" />
+        <param name="Grid/MinClusterSize" type="string" value="10" />
+        <param name="Grid/MinGroundHeight" type="string" value="0.0" />
+        <param name="Grid/NoiseFilteringMinNeighbors" type="string" value="5" />
+        <param name="Grid/NoiseFilteringRadius" type="string" value="0.0" />
+        <param name="Grid/NormalK" type="string" value="20" />
+        <param name="Grid/NormalsSegmentation" type="string" value="true" />
+        <param name="Grid/ProjRayTracing" type="string" value="true" />
+        <param name="Grid/Scan2dMaxFilledRange" type="string" value="3.0" />
+        <param name="Grid/Scan2dUnknownSpaceFilled" type="string" value="false" />
+        <param name="Grid/ScanDecimation" type="string" value="1" />
+
+        <remap from="grid_map" to="/map"/>
+
+        <include file="$(find rtabmap_launch)/launch/rtabmap.launch">
+            <arg name="args" value="$(arg pre_args)"/>
+            <!-- Basic RTAB-Map Parameters -->
+            <arg name="database_path"       type="string" value="$(arg database_path)"/>
+            <arg name="frame_id"            type="string" value="t265_link"/>
+            <arg name="odom_frame_id"       type="string" value="odom"/>
+
+            <!-- RTAB-Map Input -->
+            <arg name="odom_topic" value="$(arg odom_topic)"/>
+            <arg name="depth_topic" value="$(arg depth_topic)"/>
+            <arg name="rgb_topic" value="$(arg rgb_topic)"/>
+
+            <arg name="rgbd_sync" value="true"/>
+            <arg name="camera_info_topic" value="$(arg camera_info_topic)"/>
+            <arg name="approx_rgbd_sync" value="false"/>
+            <arg name="visual_odometry" value="false"/>
+            <arg name="subscribe_scan" value="false"/>
+            <arg name="approx_sync" value="false"/> <!-- cannot use exact sync with external odom -->
+            <arg name="localization" value="$(arg localization)"/>
+        </include>
+    </group>
 </launch>

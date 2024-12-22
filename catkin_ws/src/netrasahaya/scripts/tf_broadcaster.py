@@ -110,7 +110,7 @@ def handle_localization(msg):
 current_t265_odom = Odometry()
 
 def handle_t265_odom(msg, now = None):
-    global current_t265_odom, odom_when_cov_low, localization_when_cov_low
+    global current_t265_odom, odom_when_cov_low, localization_when_cov_low, offset_initialized
 
     current_t265_odom = msg
 
@@ -128,26 +128,36 @@ def handle_t265_odom(msg, now = None):
         odom_orientation_when_cov_low = [odom_pose_when_cov_low.orientation.x, odom_pose_when_cov_low.orientation.y, odom_pose_when_cov_low.orientation.z, odom_pose_when_cov_low.orientation.w]
         localization_orientation_when_cov_low = [localization_pose_when_cov_low.orientation.x, localization_pose_when_cov_low.orientation.y, localization_pose_when_cov_low.orientation.z, localization_pose_when_cov_low.orientation.w]
 
+        print("odom_pose_when_cov_low", odom_pose_when_cov_low)
+        print("localization_pose_when_cov_low", localization_pose_when_cov_low)
+
         error = [0, 0, 0]
         error[0] = position[0] - odom_pose_when_cov_low.position.x
         error[1] = position[1] - odom_pose_when_cov_low.position.y
         error[2] = position[2] - odom_pose_when_cov_low.position.z
         rel_orientation = utils.get_relative_quaternion(localization_orientation_when_cov_low, odom_orientation_when_cov_low)
         print("------------------------------------------------------------------------------------------------------------------------------")
+        print("error dan rel orientation : ", error, tf_conversions.transformations.euler_from_quaternion(rel_orientation))
         # print(rel_orientation, odom_orientation_when_cov_low, localization_orientation_when_cov_low)
         error = utils.quat_rotate(rel_orientation, error)
+        
+        print("Error rotated dan posisi sebelum rotasi", error, position)
 
         position[0] = localization_pose_when_cov_low.position.x + error[0]
         position[1] = localization_pose_when_cov_low.position.y + error[1]
         position[2] = localization_pose_when_cov_low.position.z + error[2]
 
-        orientation = tf_conversions.transformations.quaternion_multiply(orientation, rel_orientation)
+        print("Posisi setelah rotasi", position)
+
+        orientation = tf_conversions.transformations.quaternion_multiply(rel_orientation, orientation)
 
     rot_matrix = tf_conversions.transformations.euler_matrix(0, 0, math.pi/2, 'rxyz')
+    # rot_matrix = tf_conversions.transformations.euler_matrix(0, 0, 0, 'rxyz')
     q_rot = tf_conversions.transformations.quaternion_from_matrix(rot_matrix)
 
     new_position = utils.quat_rotate(q_rot, position)
     # new_position = position
+    print("Posisi setelah rotasi", new_position)
 
     base_link.transform.translation.x = new_position[0]
     base_link.transform.translation.y = new_position[1]

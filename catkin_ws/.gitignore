@@ -7,3 +7,4 @@ devel/
 .catkin_tools
 logs/
 *.bag
+*.db

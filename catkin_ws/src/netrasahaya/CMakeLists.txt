@@ -222,3 +222,8 @@ catkin_install_python(PROGRAMS
 	  scripts/sensing.py
 	  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}  
 	)
+
+catkin_install_python(PROGRAMS
+	  scripts/guidance.py
+	  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}  
+	)

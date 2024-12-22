@@ -1,9 +1,0 @@
-<launch>
-    <group ns="netrasahaya">
-        <arg name="enabled" default="false"/>
-
-        <node pkg="netrasahaya" type="sensing.py" name="sensing" output="screen">
-            <param name="enabled" value="$(arg enabled)"/>
-        </node>
-    </group>
-</launch>

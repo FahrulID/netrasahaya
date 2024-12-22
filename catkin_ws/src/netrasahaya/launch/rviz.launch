@@ -1,0 +1,7 @@
+<launch>
+    <arg name="rviz" default="false"/>
+
+    <group if="$(arg rviz)">
+        <node name="rviz" pkg="rviz" type="rviz" args="-d $(find netrasahaya)/rviz/netrasahaya.rviz"></node>
+    </group>
+</launch>
