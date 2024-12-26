@@ -1,10 +1,15 @@
 <launch>
+    <param name="mode" type="string" value="guidance" /> <!-- guidance or sensing -->
+
     <arg name="using_rosbag" default="true"/>
     <arg name="rviz" default="true"/>
     <arg name="localization" default="true"/>
 
     <arg     if="$(arg localization)" name="pre_args" default=""/>
     <arg unless="$(arg localization)" name="pre_args" default="--delete_db_on_start"/>
+
+    <node pkg="tf2_ros" type="static_transform_publisher" name="map_to_odom" args="0 0 0 0 0 0 map odom" />
+    <node pkg="tf2_ros" type="static_transform_publisher" name="odom_to_t265_odom_frame" args="0 0 0 -1.5708 0 0 odom t265_odom_frame" />
 
     <group if="$(arg using_rosbag)">
         <param name="use_sim_time" value="true"/>
@@ -21,6 +26,11 @@
     <include file="$(find netrasahaya)/launch/move_base.launch"></include>
     
     <include file="$(find netrasahaya)/launch/rviz.launch">
+        <arg name="rviz" value="$(arg rviz)"/>
+    </include>
+
+    <include file="$(find netrasahaya)/launch/guidance.launch"></include>
+    <include file="$(find netrasahaya)/launch/sensing.launch">
         <arg name="rviz" value="$(arg rviz)"/>
     </include>
 </launch>

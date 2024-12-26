@@ -8,6 +8,7 @@ Panels:
         - /Status1
         - /TF1
         - /TF1/Frames1
+        - /TwistStamped1
       Splitter Ratio: 0.5
     Tree Height: 734
   - Class: rviz/Selection
@@ -78,8 +79,6 @@ Visualization Manager:
           Value: true
         t265_link:
           Value: false
-        t265_occupancy_frame:
-          Value: true
         t265_odom_frame:
           Value: true
         t265_pose_frame:
@@ -94,8 +93,6 @@ Visualization Manager:
         map:
           odom:
             t265_odom_frame:
-              t265_occupancy_frame:
-                {}
               t265_pose_frame:
                 t265_link:
                   d400_link:
@@ -167,31 +164,7 @@ Visualization Manager:
       Buffer Length: 1
       Class: rviz/Path
       Color: 25; 255; 0
-      Enabled: true
-      Head Diameter: 0.30000001192092896
-      Head Length: 0.20000000298023224
-      Length: 0.30000001192092896
-      Line Style: Lines
-      Line Width: 0.029999999329447746
-      Name: Path
-      Offset:
-        X: 0
-        Y: 0
-        Z: 0
-      Pose Color: 255; 85; 255
-      Pose Style: None
-      Queue Size: 10
-      Radius: 0.029999999329447746
-      Shaft Diameter: 0.10000000149011612
-      Shaft Length: 0.10000000149011612
-      Topic: /move_base/DWAPlannerROS/global_plan
-      Unreliable: false
-      Value: true
-    - Alpha: 1
-      Buffer Length: 1
-      Class: rviz/Path
-      Color: 25; 255; 0
-      Enabled: true
+      Enabled: false
       Head Diameter: 0.30000001192092896
       Head Length: 0.20000000298023224
       Length: 0.30000001192092896
@@ -210,6 +183,67 @@ Visualization Manager:
       Shaft Length: 0.10000000149011612
       Topic: /move_base/DWAPlannerROS/local_plan
       Unreliable: false
+      Value: false
+    - Alpha: 1
+      Angular Arrow Scale: 5
+      Angular Color: 204; 204; 51
+      Arrow Width: 0.5
+      Class: rviz/TwistStamped
+      Enabled: true
+      Hide Small Values: true
+      History Length: 1
+      Linear Arrow Scale: 5
+      Linear Color: 204; 51; 51
+      Name: TwistStamped
+      Queue Size: 10
+      Topic: /guidance_twist
+      Unreliable: false
+      Value: true
+    - Alpha: 1
+      Class: rviz/Polygon
+      Color: 25; 255; 0
+      Enabled: true
+      Name: Polygon
+      Queue Size: 10
+      Topic: /depan_kanan_polygon
+      Unreliable: false
+      Value: true
+    - Alpha: 1
+      Class: rviz/Polygon
+      Color: 25; 255; 0
+      Enabled: true
+      Name: Polygon
+      Queue Size: 10
+      Topic: /depan_kiri_polygon
+      Unreliable: false
+      Value: true
+    - Alpha: 1
+      Class: rviz/Polygon
+      Color: 25; 255; 0
+      Enabled: true
+      Name: Polygon
+      Queue Size: 10
+      Topic: /kanan_polygon
+      Unreliable: false
+      Value: true
+    - Alpha: 1
+      Class: rviz/Polygon
+      Color: 25; 255; 0
+      Enabled: true
+      Name: Polygon
+      Queue Size: 10
+      Topic: /kiri_polygon
+      Unreliable: false
+      Value: true
+    - Alpha: 0.699999988079071
+      Class: rviz/Map
+      Color Scheme: map
+      Draw Behind: false
+      Enabled: true
+      Name: Map
+      Topic: /occupancy
+      Unreliable: false
+      Use Timestamp: false
       Value: true
   Enabled: true
   Global Options:
@@ -239,7 +273,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 17.22905921936035
+      Distance: 20.247493743896484
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -247,9 +281,9 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: -2.141584634780884
-        Y: -4.735811710357666
-        Z: -1.2114495038986206
+        X: 0.9897353649139404
+        Y: -2.3555240631103516
+        Z: -1.088112235069275
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
@@ -257,7 +291,7 @@ Visualization Manager:
       Near Clip Distance: 0.009999999776482582
       Pitch: 1.5697963237762451
       Target Frame: <Fixed Frame>
-      Yaw: 3.1454081535339355
+      Yaw: 3.145399570465088
     Saved: ~
 Window Geometry:
   Displays:

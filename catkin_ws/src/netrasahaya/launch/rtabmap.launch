@@ -8,9 +8,6 @@
     <arg name="rgb_topic" default="/d400/color/image_raw"/>
     <arg name="camera_info_topic" default="/d400/color/camera_info"/>
 
-    <node pkg="tf2_ros" type="static_transform_publisher" name="map_to_odom" args="0 0 0 0 0 0 map odom" />
-    <node pkg="tf2_ros" type="static_transform_publisher" name="odom_to_t265_odom_frame" args="0 0 0 -1.5708 0 0 odom t265_odom_frame" />
-
     <group>
         <param name="RGBD/OptimizeSlam2D" type="string" value="true"/>
         <param name="Mem/UseOdomGravity" type="string" value="true"/>

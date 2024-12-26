@@ -3,6 +3,83 @@ import tf_conversions
 from geometry_msgs.msg import Point, Pose, Quaternion
 from nav_msgs.msg import MapMetaData, OccupancyGrid
 import numpy as np
+from shapely.geometry import Polygon as ShapelyPolygon
+from shapely.geometry import Point as ShapelyPoint
+import rospy
+
+def get_polygon_segment_from_pose(pose: Pose, distance=1.0, theta=0.0, theta_range=0.0):
+    """
+    Get the polygon segment from a pose
+    :param pose: the pose
+    :param distance: the distance of the segment
+    :param theta: the angle of the segment
+    :param theta_range: the range of the angle
+    :return: the polygon segment consisting of list of far polygon and near polygon
+      P2------P3
+        \    |
+     HP2 \___| HP3
+          \  |
+           \ |
+            \| P1
+    """
+    point1 = Point(x=0, y=0, z=0)
+    point2 = rotate_point(Point(x=distance, y=0, z=0), 0, 0, theta + theta_range)
+    point3 = rotate_point(Point(x=distance, y=0, z=0), 0, 0, theta - theta_range)
+    halfpoint2 = rotate_point(Point(x=distance/2, y=0, z=0), 0, 0, theta + theta_range)
+    halfpoint3 = rotate_point(Point(x=distance/2, y=0, z=0), 0, 0, theta - theta_range)
+
+    point1_pose = local_to_global(pose, point1)
+    point2_pose = local_to_global(pose, point2)
+    point3_pose = local_to_global(pose, point3)
+    halfpoint2_pose = local_to_global(pose, halfpoint2)
+    halfpoint3_pose = local_to_global(pose, halfpoint3)
+
+    near_polygon = [(point1_pose.position.x, point1_pose.position.y), (halfpoint2_pose.position.x, halfpoint2_pose.position.y), (halfpoint3_pose.position.x, halfpoint3_pose.position.y)]
+    far_polygon = [(halfpoint2_pose.position.x, halfpoint2_pose.position.y), (point2_pose.position.x, point2_pose.position.y), (point3_pose.position.x, point3_pose.position.y), (halfpoint3_pose.position.x, halfpoint3_pose.position.y)]
+
+    return near_polygon, far_polygon
+
+def check_if_points_in_grid_map_are_occupied(points, map_data, threshold=0):
+    """
+    Check if the points in the grid map are occupied
+    :param points: the points to check
+    :param map_data: the map data
+    :param threshold: the threshold to consider a cell as occupied
+    :return: True if all points are occupied, False otherwise
+    """
+    for x, y in points:
+        if x < 0 or y < 0 or x >= map_data.shape[1] or y >= map_data.shape[0]:
+            continue
+        if map_data[y, x] > threshold:
+            return True
+    return False
+
+def get_grid_points_inside_polygon(polygon, grid_spacing=1):
+    """
+    Get the grid points inside a polygon
+    :param polygon: the polygon (list of (x, y) tuples). e.g. [(0, 0), (2, 0), (3, 1), (2, 2), (0, 2), (-1, 1)]
+    :return: list of (x, y) tuples inside the polygon
+    """
+    # Define a polygon with more than 4 points (example: hexagon)
+    polygon = ShapelyPolygon(polygon)
+
+    # Get the bounding box of the polygon
+    min_x, min_y, max_x, max_y = polygon.bounds
+
+    # Generate grid points
+    grid_points = []
+    x = min_x
+    while x <= max_x:
+        y = min_y
+        while y <= max_y:
+            point = ShapelyPoint(x, y)
+            # Include points inside or on the edge of the polygon
+            if polygon.contains(point) or polygon.touches(point):
+                grid_points.append((x, y))
+            y += grid_spacing
+        x += grid_spacing
+
+    return grid_points
 
 ### Quaternion Related Functions ###
 
@@ -148,6 +225,8 @@ def world_to_grid(x, y, map_info: MapMetaData):
 
     origin = map_info.origin.position
     resolution = map_info.resolution
+
+    # rospy.logerr(f'origin: {origin}, resolution: {resolution}')
 
     if resolution == 0:
         return 0, 0

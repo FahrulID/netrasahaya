@@ -1,21 +1,80 @@
-controller_frequency: 10
-
 GlobalPlanner: # For list of available parameters, see http://wiki.ros.org/global_planner
   allow_unknown: true # Specifies whether or not to allow the global planner to create plans that traverse unknown space.
   default_tolerance: 0.1 # A tolerance on the goal point for the planner.
-  use_dijkstra: false # Specifies whether or not to use dijkstra's algorithm or A* for planning.
+  use_dijkstra: yes # Specifies whether or not to use dijkstra's algorithm or A* for planning.
   neutral_cost: 66 # The cost that the planner assigns to cells with no information.
   lethal_cost: 253 # The cost that the planner assigns to cells with lethal obstacles.
   cost_factor: 0.5
 
 # For list of available parameters, see http://wiki.ros.org/dwa_local_planner
+# DWAPlannerROS:
+#   max_vel_x: 0.25
+#   min_vel_x: -0.25
+#   max_vel_y: 0.25
+#   min_vel_y: -0.25
+#   min_rot_vel: 0.0
+#   max_rot_vel: 0.0
+#   acc_lim_theta: 0.0
+#   yaw_goal_tolerance: 6.28 # Allowing complete rotation without correction
+#   xy_goal_tolerance: 0.5
 DWAPlannerROS:
-  max_vel_x: 1
-  min_vel_x: -1
-  max_vel_y: 1
-  min_vel_y: -1
-  min_rot_vel: 0.0
-  max_rot_vel: 0.0
-  acc_lim_theta: 0.0
-  yaw_goal_tolerance: 6.28 # Allowing complete rotation without correction
+  # Robot Configuration Parameters
+  acc_lim_x: 1.0          # Maximum acceleration in the x-direction (m/s^2)
+  acc_lim_y: 1.0          # Maximum acceleration in the y-direction (m/s^2)
+  acc_lim_theta: 0.0      # Disable angular acceleration
 
+  max_vel_x: 1.0          # Maximum velocity in the x-direction (m/s)
+  min_vel_x: -1.0         # Minimum velocity in the x-direction (m/s)
+  max_vel_y: 1.0          # Maximum velocity in the y-direction (m/s)
+  min_vel_y: -1.0         # Minimum velocity in the y-direction (m/s)
+  max_vel_theta: 0.0      # Disable angular velocity
+  min_vel_theta: 0.0      # Disable angular velocity
+  min_vel_trans: 0.1      # Minimum translational velocity (m/s)
+  max_vel_trans: 1.0      # Maximum translational velocity (m/s)
+
+  # Goal Tolerance Parameters
+  xy_goal_tolerance: 0.2  # Distance tolerance in the x-y plane for reaching a goal (m)
+  yaw_goal_tolerance: 3.14 # Allow any yaw angle (doesn't matter if the robot rotates)
+  latch_xy_goal_tolerance: false
+
+  # Trajectory Sampling Parameters
+  sim_time: 1.5           # Time to roll out the trajectory (s)
+  vx_samples: 20          # Number of samples for velocities in the x-direction
+  vy_samples: 20          # Number of samples for velocities in the y-direction
+  vtheta_samples: 1       # Only one sample for theta (no angular movement)
+
+  # Obstacle Avoidance Parameters
+  pdist_scale: 0.6        # Weight for distance to the goal
+  gdist_scale: 0.8        # Weight for distance to the robot
+  occdist_scale: 0.01     # Weight for distance to obstacles
+
+  # Dynamic Window Parameters
+  forward_point_distance: 0.0  # No forward projection since there's no rotation
+  path_distance_bias: 32.0     # Bias for paths closer to the robot
+  goal_distance_bias: 24.0     # Bias for paths closer to the goal
+  occdist_scale: 0.01          # Obstacle cost weight
+
+  # Holonomic Robot Support
+  holonomic_robot: true         # Enable support for holonomic robots
+
+  # Global Plan Pruning Parameters
+  prune_plan: true              # Remove parts of the global plan that have already been passed
+
+  # Oscillation Prevention Parameters
+  oscillation_reset_dist: 0.05  # Distance to reset oscillation prevention (m)
+
+  # Visualization Parameters
+  publish_traj_pc: true         # Publish trajectory costs as a PointCloud
+  publish_cost_grid_pc: false   # Publish cost grid information as a PointCloud
+
+TebLocalPlannerROS:
+  max_vel_x: 0.5
+  max_vel_x_backwards: 0.5
+  max_vel_theta: 0.0
+  acc_lim_x: 0.5
+  acc_lim_theta: 0.0
+  max_vel_y: 0.5
+  footprint_model:
+    type: "circular"
+    radius: 0.1
+  xy_goal_tolerance: 0.25

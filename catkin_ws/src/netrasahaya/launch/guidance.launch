@@ -1,0 +1,3 @@
+<launch>
+    <node pkg="netrasahaya" type="guidance.py" name="guidance" output="screen"></node>
+</launch>

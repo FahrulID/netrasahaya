@@ -1,0 +1,10 @@
+<launch>
+    <arg name="rviz" default="false"/>
+
+    <group ns="sensing">
+        <param if="$(arg rviz)" name="visualize" value="true"/>
+        <param unless="$(arg rviz)" name="visualize" value="false"/>
+
+        <node pkg="netrasahaya" type="sensing.py" name="sensing" output="screen"></node>
+    </group>
+</launch>
