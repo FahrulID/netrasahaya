@@ -19,3 +19,6 @@ def main():
     version = project.version(version)
 
     version.deploy("yolov8", model_path, "weights/best.pt")
+
+if __name__ == "__main__":
+    main()
