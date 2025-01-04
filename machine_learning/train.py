@@ -57,6 +57,7 @@ def main():
         epochs=300, 
         batch=16,
         patience=10,                             # Early stopping patience
+        dropout=0.05,                            # Dropout probability
         # augment=True,                          # Use augmentations, source: https://docs.ultralytics.com/modes/train/#augmentation-settings-and-hyperparameters
         # hsv_h=0.015,                           # Hue augmentation (fraction)
         # hsv_s=0.7,                             # Saturation augmentation (fraction)

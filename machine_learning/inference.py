@@ -37,7 +37,7 @@ def draw_bounding_box(img, class_, confidence, x, y, x_plus_w, y_plus_h):
     cv2.putText(img, label, (x - 10, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 
 def ultralytics_inference(model, frame, visualize=True):
-    results = model(frame, conf=0.5)
+    results = model(frame, conf=0.6)
 
     for result in results:
         masks = result.masks  # Masks object for segmentation masks outputs
@@ -47,6 +47,9 @@ def ultralytics_inference(model, frame, visualize=True):
 
         for i, mask in enumerate(masks):
             if mask.xy is None or len(mask.xy) == 0:
+                continue
+
+            if mask.data is None or len(mask.data) == 0:
                 continue
 
             # # Get the class-specific color
@@ -59,9 +62,14 @@ def ultralytics_inference(model, frame, visualize=True):
             contour = contour.reshape(-1, 1, 2)
             _ = cv2.drawContours(mask_frame, [contour], -1, color, cv2.FILLED)
 
+            semantic = mask.data
+            semantic_mask = semantic.cpu().squeeze(0).numpy()
+
             if visualize:
                 # apply mask to frame with color
                 frame = cv2.addWeighted(frame, 1, mask_frame, 0.5, 0)
+                cv2.imshow(f"Semantic {cls}", semantic_mask)
+                cv2.imshow(f"Contour {cls}", mask_frame)
 
     if visualize:
         cv2.imshow("Inference", frame)
