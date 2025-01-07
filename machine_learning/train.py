@@ -3,6 +3,7 @@ import os
 import torch
 from distutils.dir_util import copy_tree
 import shutil
+import time
 
 def get_train_device(multi_gpu=False):
     if torch.cuda.is_available():
@@ -49,6 +50,7 @@ def main():
 
     model = YOLO(f"yolov8s-seg.pt")
 
+    start = time.time()
     # Train
     results = model.train(
         data=dataset, 
@@ -72,6 +74,9 @@ def main():
         # mosaic=1.0,                            # Mosaic augmentation probability
         # mixup=0.5                              # MixUp augmentation probability
     )
+    end = time.time()
+
+    print(f"Time taken to train: {end - start:.2f}s")
     
     update_latest_trained_model(results, latest_dir)
 
