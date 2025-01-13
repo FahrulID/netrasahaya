@@ -15,6 +15,7 @@
 // Motor state 0 = stop, 1 = slow forward, 2 = fast forward, 3 = slow backward, 4 = fast backward
 const int COMMAND_LENGTH = 9;
 byte commandBuffer[COMMAND_LENGTH];
+const int STOP_SPEED = 0;
 const int SLOW_SPEED = 100;
 const int FAST_SPEED = 255;
 const bool DEBUG = true;
@@ -47,6 +48,9 @@ void setup() {
   Serial.begin(115200);
 
   disableAllMotor();
+
+  commandBuffer[0] = 0x66;
+  commandBuffer[COMMAND_LENGTH - 1] = 0x99;
 }
 
 void loop() {
@@ -111,13 +115,26 @@ void applyCommand() {
     int state = 0;
 
     if (i % 2 == 0)
-      state = (int) (commandBuffer[byteIndex] & 0xF0 % 16); // get high nibble
+      state = (int) (commandBuffer[byteIndex] & 0xF0) / 16; // get high nibble
     else
       state = (int) (commandBuffer[byteIndex] & 0x0F); // get low nibble
+
+    if(DEBUG)
+    {
+      Serial.print("Motor: ");
+      Serial.print(i);
+      Serial.print(" Byte Index: ");
+      Serial.print(byteIndex);
+      Serial.print(" State Byte: ");
+      Serial.print(commandBuffer[byteIndex]);
+      Serial.print(" State: ");
+      Serial.println(state);
+    }
 
     switch(state) {
       case 0:
         motorState[i] = RELEASE;
+        motorSpeed[i] = STOP_SPEED;
         break;
       case 1:
         motorState[i] = FORWARD;
@@ -147,9 +164,24 @@ void applyCommand() {
     int byteIndex = speedByteStartIndex + i;
     int speed = (int) commandBuffer[byteIndex];
 
+    if(DEBUG)
+    {
+      Serial.print("Motor: ");
+      Serial.print(i);
+      Serial.print(" Byte Index: ");
+      Serial.print(byteIndex);
+      Serial.print(" Speed Byte: ");
+      Serial.print(commandBuffer[byteIndex]);
+      Serial.print(" Speed: ");
+      Serial.println(speed);
+    }
+
     // Only apply speed when the speed is not 0 (stop) and override the value from states
     if (speed != 0) {
-      motors[i].setSpeed(speed);
+      motorSpeed[i] = speed;
+
+      if(motorState[i] == RELEASE)
+        motorState[i] = FORWARD;
     }
   }
 }
@@ -175,7 +207,7 @@ void runMotor() {
 
 void debugMotor() {
   for (size_t i = 0; i < sizeof(motors) / sizeof(motors[0]); i++) {
-    sprintf(debugBuffer, "Motor %d Speed %d State %d \n", i, motorSpeed[i], motorState[i]);
+    sprintf(debugBuffer, "Motor %d Motor Speed %d Motor State %d \n", i, motorSpeed[i], motorState[i]);
     Serial.print(debugBuffer);
   }
 }
