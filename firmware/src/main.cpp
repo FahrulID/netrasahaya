@@ -177,11 +177,8 @@ void applyCommand() {
     }
 
     // Only apply speed when the speed is not 0 (stop) and override the value from states
-    if (speed != 0) {
+    if (speed != 0 && motorState[i] != RELEASE) {
       motorSpeed[i] = speed;
-
-      if(motorState[i] == RELEASE)
-        motorState[i] = FORWARD;
     }
   }
 }
