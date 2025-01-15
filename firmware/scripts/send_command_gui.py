@@ -32,7 +32,7 @@ def gui():
     root = Tk()
 
     motors_list = ["Motor 1", "Motor 2", "Motor 3", "Motor 4"]
-    states_list = ["stop", "slow forward", "fast forward", "slow backward", "fast backward"]
+    states_list = ["stop", "manual forward", "slow forward", "fast forward", "manual backward", "slow backward", "fast backward"]
 
     main_frame = Frame(root)
     main_frame.pack()

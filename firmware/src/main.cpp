@@ -12,7 +12,7 @@
 // 7th byte: 0xFF (motor speed of motor 4)
 // 8th byte: 0x00 (hash byte, 0x00 = 0x00 ^ 0x00 ^ 0xFF ^ 0xFF ^ 0xFF ^ 0xFF)
 // 9th byte: 0x99 (end byte)
-// Motor state 0 = stop, 1 = slow forward, 2 = fast forward, 3 = slow backward, 4 = fast backward
+// Motor state 0 = stop, 1 = manual forward, 2 = slow forward, 3 = fast forward, 4 = manual backward, 5 = slow backward, 6 = fast backward
 const int COMMAND_LENGTH = 9;
 byte commandBuffer[COMMAND_LENGTH];
 const int STOP_SPEED = 0;
@@ -119,18 +119,6 @@ void applyCommand() {
     else
       state = (int) (commandBuffer[byteIndex] & 0x0F); // get low nibble
 
-    if(DEBUG)
-    {
-      Serial.print("Motor: ");
-      Serial.print(i);
-      Serial.print(" Byte Index: ");
-      Serial.print(byteIndex);
-      Serial.print(" State Byte: ");
-      Serial.print(commandBuffer[byteIndex]);
-      Serial.print(" State: ");
-      Serial.println(state);
-    }
-
     switch(state) {
       case 0:
         motorState[i] = RELEASE;
@@ -138,17 +126,25 @@ void applyCommand() {
         break;
       case 1:
         motorState[i] = FORWARD;
-        motorSpeed[i] = SLOW_SPEED;
+        motorSpeed[i] = STOP_SPEED;
         break;
       case 2:
         motorState[i] = FORWARD;
-        motorSpeed[i] = FAST_SPEED;
+        motorSpeed[i] = SLOW_SPEED;
         break;
       case 3:
+        motorState[i] = FORWARD;
+        motorSpeed[i] = FAST_SPEED;
+        break;
+      case 4:
+        motorState[i] = BACKWARD;
+        motorSpeed[i] = STOP_SPEED;
+        break;
+      case 5:
         motorState[i] = BACKWARD;
         motorSpeed[i] = SLOW_SPEED;
         break;
-      case 4:
+      case 6:
         motorState[i] = BACKWARD;
         motorSpeed[i] = FAST_SPEED;
         break;
@@ -166,14 +162,8 @@ void applyCommand() {
 
     if(DEBUG)
     {
-      Serial.print("Motor: ");
-      Serial.print(i);
-      Serial.print(" Byte Index: ");
-      Serial.print(byteIndex);
-      Serial.print(" Speed Byte: ");
-      Serial.print(commandBuffer[byteIndex]);
-      Serial.print(" Speed: ");
-      Serial.println(speed);
+      sprintf(debugBuffer, "Motor: %d Byte Index: %d Speed Byte: %02X Speed: %d\n", i, byteIndex, commandBuffer[byteIndex], speed);
+      Serial.print(debugBuffer);
     }
 
     // Only apply speed when the speed is not 0 (stop) and override the value from states
