@@ -1,0 +1,6 @@
+.env
+dataset/**/*
+runs/**/*
+train-latest/**/*
+dataset-latest/**/*
+*.pt
