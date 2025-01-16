@@ -114,6 +114,9 @@ if __name__ == '__main__':
             if not enabled:
                 raise SensingDisabled('Sensing is disabled')
             
+            if odom == Odometry() or occupancy == OccupancyGrid():
+                raise SensingDisabled('No data received')
+            
             theta1 = math.pi*1/2 - math.pi*1/8 # 90 - 22.5 = 67.5 degree
             theta2 = math.pi*1/2 - math.pi*3/8 # 90 - 67.5 = 22.5 degree
             theta_range = math.pi*1/8
@@ -135,14 +138,14 @@ if __name__ == '__main__':
                 kanan_polygon_pub.publish(kanan_polygon)
                 depan_kiri_polygon_pub.publish(depan_kiri_polygon)
                 depan_kanan_polygon_pub.publish(depan_kanan_polygon)
-                # rospy.loginfo(f'Kiri: {kiri_severity}, Depan Kiri: {depan_kiri_severity}, Depan Kanan: {depan_kanan_severity}, Kanan: {kanan_severity}')
-        except SensingDisabled:
-            # rospy.loginfo('Sensing is disabled')
+                # rospy.logerr(f'Kiri: {kiri_severity}, Depan Kiri: {depan_kiri_severity}, Depan Kanan: {depan_kanan_severity}, Kanan: {kanan_severity}')
+        except SensingDisabled as e:
+            rospy.logerr_throttle(1, e)
             pass   
         except rospy.ROSInterruptException:
             break
         except Exception as e:
-            rospy.logerr(e)
+            rospy.logerr_throttle(e)
             break
         
         rate.sleep()
