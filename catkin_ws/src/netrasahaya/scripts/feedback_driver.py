@@ -91,6 +91,9 @@ if __name__ == '__main__':
     
     while not rospy.is_shutdown():
         try:
+            if not s.isOpen():
+                rate.sleep()
+                continue
             command = construct_command(motor_speeds, motor_states)
             s.write(command)
             print(f'Sent command: {command}')

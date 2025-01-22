@@ -33,4 +33,6 @@
     <include file="$(find netrasahaya)/launch/sensing.launch">
         <arg name="rviz" value="$(arg rviz)"/>
     </include>
+
+    <include file="$(find netrasahaya)/launch/feedback.launch"></include>
 </launch>
