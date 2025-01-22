@@ -26,6 +26,7 @@ char debugBuffer[64];
 const unsigned long debugPeriod = 1000;  // Period in milliseconds
 unsigned long lastDebugMillis = 0; // Last time debug printed 
 unsigned long lastReceivedMillis = 0; // Last time command received
+bool timeout = false;
 
 // Motors
 AF_DCMotor motor1(1);
@@ -69,7 +70,13 @@ void loop() {
 
   if (currentMillis - lastReceivedMillis >= 3000) // 3 second of no command, stop all motor
   {
-    disableAllMotor();
+    if(!timeout)
+    {
+      disableAllMotor();
+      sprintf(debugBuffer, "No command received for 3 seconds, stop all motor\n");
+      Serial.print(debugBuffer);
+      timeout = true;
+    }
   }
 
   if(!Serial.available())
@@ -87,6 +94,7 @@ void loop() {
 
   runMotor();
   lastReceivedMillis = currentMillis;
+  timeout = false;
 }
 
 void pushBuffer(byte data) {
