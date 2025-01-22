@@ -2,16 +2,17 @@ import threading
 from time import sleep
 from tkinter import *
 import serial as ser
+from typing import List
 
-motor_speeds: list[int] = [0, 0, 0, 0]
-motor_states: list[int] = [0, 0, 0, 0]
+motor_speeds: List[int] = [0, 0, 0, 0]
+motor_states: List[int] = [0, 0, 0, 0]
 
 kill_signal = False
 
 def constructByteFromTwiNibble(nibble1: int, nibble2: int) -> int:
     return (nibble1 << 4) | nibble2
 
-def construct_command(speeds: list[int], states: list[int]) -> bytearray:
+def construct_command(speeds: List[int], states: List[int]) -> bytearray:
     secondByte = constructByteFromTwiNibble(states[0], states[1])
     thirdByte = constructByteFromTwiNibble(states[2], states[3])
     fourthByte = speeds[0]
@@ -79,7 +80,7 @@ def serial():
     global motor_speeds, motor_states, kill_signal
 
     try:
-        s = ser.Serial('COM3', 
+        s = ser.Serial('/dev/serial/by-id/usb-Arduino__www.arduino.cc__Arduino_14101-if00', 
             baudrate=115200, 
             parity=ser.PARITY_NONE, 
             stopbits=ser.STOPBITS_ONE,
@@ -124,7 +125,7 @@ def serial():
                     print(f"Error writing to Arduino: {e}")
                     break
                 finally:
-                    sleep(1)
+                    sleep(0.1)
             print("Exiting write_to_arduino")
         
         try:

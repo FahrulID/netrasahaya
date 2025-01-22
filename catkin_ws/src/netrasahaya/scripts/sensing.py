@@ -5,6 +5,7 @@ from nav_msgs.msg import OccupancyGrid, Odometry
 from std_msgs.msg import Int32
 import message_filters
 import utils.utils as utils
+import numpy as np
 
 class SensingDisabled(Exception):
     pass

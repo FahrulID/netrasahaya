@@ -6,6 +6,7 @@ import numpy as np
 from shapely.geometry import Polygon as ShapelyPolygon
 from shapely.geometry import Point as ShapelyPoint
 import rospy
+from collections import deque
 
 def get_polygon_segment_from_pose(pose: Pose, distance=1.0, theta=0.0, theta_range=0.0):
     """
@@ -38,6 +39,65 @@ def get_polygon_segment_from_pose(pose: Pose, distance=1.0, theta=0.0, theta_ran
     far_polygon = [(halfpoint2_pose.position.x, halfpoint2_pose.position.y), (point2_pose.position.x, point2_pose.position.y), (point3_pose.position.x, point3_pose.position.y), (halfpoint3_pose.position.x, halfpoint3_pose.position.y)]
 
     return near_polygon, far_polygon
+
+def is_path_possible(grid, start_points, end_points, threshold=10, boundary_polygon=None) -> bool:
+    """
+    Utilizing BFS to find if there is a path from any cell in the first row to any cell in the last row
+    :param grid: the grid
+    :param start_points: the starting points (list of (x, y) tuples)
+    :param end_points: the ending points (list of (x, y) tuples)
+    :param boundary_polygon: the boundary polygon
+    :return: True if there is a path, False otherwise
+    """
+    rows, cols = grid.shape
+
+    if not start_points:
+        return False  # No free starting points in the last row
+    
+    if type(boundary_polygon) is not list and boundary_polygon is not None:
+        raise ValueError("boundary_polygon must be a list of (x, y) tuples")
+    
+    boundary_polygon = ShapelyPolygon(boundary_polygon) if boundary_polygon is not None else None
+
+    # Directions for 4-connected grid (up, down, left, right)
+    directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]
+
+    # BFS queue and visited set
+    queue = deque(start_points)
+    visited = set(start_points)
+
+    while queue:
+        y, x = queue.popleft()
+
+        # If we reach one of the points then return True
+        if (x, y) in end_points:
+            return True
+
+        # Explore neighbors
+        for dx, dy in directions:
+            nx, ny = x + dx, y + dy
+            
+            inside_boundary = 0 <= nx < rows and 0 <= ny < cols
+            if not inside_boundary:
+                continue
+
+            is_visited = (nx, ny) in visited
+            if is_visited:
+                continue
+
+            inside_polygon = boundary_polygon is None or boundary_polygon.contains(ShapelyPoint(nx, ny)) or boundary_polygon.touches(ShapelyPoint(nx, ny))
+            # print(inside_polygon)
+            if not inside_polygon:
+                continue
+
+            is_occupied = grid[nx, ny] >= threshold
+            if is_occupied:
+                continue
+
+            queue.append((nx, ny))
+            visited.add((nx, ny))
+
+    return False  # No path found
 
 def check_if_points_in_grid_map_are_occupied(points, map_data, threshold=0):
     """

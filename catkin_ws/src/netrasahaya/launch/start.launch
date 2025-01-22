@@ -1,5 +1,5 @@
 <launch>
-    <param name="mode" type="string" value="guidance" /> <!-- guidance or sensing -->
+    <param name="mode" type="string" value="sensing" /> <!-- guidance or sensing -->
 
     <arg name="using_rosbag" default="true"/>
     <arg name="rviz" default="true"/>
@@ -13,7 +13,7 @@
 
     <group if="$(arg using_rosbag)">
         <param name="use_sim_time" value="true"/>
-        <node pkg="rosbag" type="play" name="player" output="screen" args="--clock /home/fahrul/netrasahaya/catkin_ws/dataset3.bag"/>
+        <node pkg="rosbag" type="play" name="player" output="screen" args="--clock /home/fahrul/netrasahaya/catkin_ws/dataset2.bag"/>
     </group>
 
     <include file="$(find occupancy)/launch/occupancy.launch"></include>
