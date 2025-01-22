@@ -6,6 +6,7 @@ from typing import List
 
 motor_speeds: List[int] = [0, 0, 0, 0]
 motor_states: List[int] = [0, 0, 0, 0]
+send_state = True
 
 kill_signal = False
 
@@ -28,15 +29,25 @@ def command_to_string(command: bytearray) -> str:
     return " ".join(f"{byte:02X}" for byte in command)
 
 def gui():
-    global motor_speeds, motor_states, kill_signal
+    global motor_speeds, motor_states, kill_signal, send_state
 
     root = Tk()
 
+    send_list = ["Send", "Stop"]
     motors_list = ["Motor 1", "Motor 2", "Motor 3", "Motor 4"]
     states_list = ["stop", "manual forward", "slow forward", "fast forward", "manual backward", "slow backward", "fast backward"]
 
     main_frame = Frame(root)
     main_frame.pack()
+
+    def update_send_state(value):
+        global send_state
+        send_state = value == "Send"
+        
+    send_state_var = StringVar(root)
+    send_state_var.set(send_list[0])
+    send_state_menu = OptionMenu(main_frame, send_state_var, *send_list, command=update_send_state)
+    send_state_menu.pack(side=TOP)
 
     def update_motor_speed(index, value):
         motor_speeds[index] = int(value)
@@ -68,7 +79,7 @@ def gui():
                 print("Exiting update_gui")
                 break
             command = construct_command(motor_speeds, motor_states)
-            command_label.config(text=f"Command: {command_to_string(command)}")
+            command_label.config(text=f"Command: {command_to_string(command)}, send: {send_state}")
             sleep(0.1)
 
     update_thread = threading.Thread(target=update_gui, daemon=True)
@@ -77,7 +88,7 @@ def gui():
     root.mainloop()
 
 def serial():
-    global motor_speeds, motor_states, kill_signal
+    global motor_speeds, motor_states, kill_signal, send_state
 
     try:
         s = ser.Serial('/dev/serial/by-id/usb-Arduino__www.arduino.cc__Arduino_14101-if00', 
@@ -110,10 +121,15 @@ def serial():
             print("Exiting read_from_arduino")
 
         def write_to_arduino():
-            global motor_speeds, motor_states, kill_signal
+            global motor_speeds, motor_states, kill_signal, send_state
             """Writes data to Arduino in a separate thread."""
             while True:
                 try:
+                    if not send_state:
+                        print("Not sending command")
+                        sleep(0.1)
+                        continue
+
                     command = construct_command(motor_speeds, motor_states)
                     s.write(command)
                     print(f"Command sent: {command}")
