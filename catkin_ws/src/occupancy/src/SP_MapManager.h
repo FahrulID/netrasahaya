@@ -16,8 +16,9 @@
 
 namespace ScenePerception
 {
-#define maxFrameRejections 3
-#define mapUpdateProblemSize 2
+#define maxFrameRejections 2
+#define mapUpdateProblemSize 1
+#define decayingFactor 0.25f
 
 	struct TileInfo
 	{

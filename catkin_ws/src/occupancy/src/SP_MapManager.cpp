@@ -494,7 +494,7 @@ unsigned int SP_MapManager::RunMapUpdate()
 							}
 
 							// ok have to decrease weight
-							it->second.height2pointCount[y] = (int)(it->second.height2pointCount[y] * 0.75f);
+							it->second.height2pointCount[y] = (int)(it->second.height2pointCount[y] * decayingFactor);
 							modifiedSet.insert(std::make_pair(x, z));
 						}
 					}

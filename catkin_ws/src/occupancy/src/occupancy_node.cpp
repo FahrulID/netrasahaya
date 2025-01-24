@@ -137,7 +137,7 @@ int main(int argc, char **argv)
 
     while (ros::ok())
     {
-        if (framesSinceLastPublished > 5)
+        if (framesSinceLastPublished > 2)
         {
             framesSinceLastPublished = 0;
             auto status = SP_STATUS_WARNING;
