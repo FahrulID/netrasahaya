@@ -11,7 +11,7 @@ import math
 import numpy as np
 from nav_msgs.msg import OccupancyGrid
 
-def check_passability(start, end_points, map_data):
+def check_passability(start, end_points, map_data, threshold=50):
     if not end_points:
         return False
         
@@ -27,11 +27,45 @@ def check_passability(start, end_points, map_data):
         for dx, dy in [(0,1), (1,0), (0,-1), (-1,0)]:
             nx, ny = x + dx, y + dy
             if (0 <= ny < map_data.shape[0] and 0 <= nx < map_data.shape[1] and
-                (nx, ny) not in visited and map_data[ny][nx] < 50):
+                (nx, ny) not in visited and map_data[ny][nx] > -2 and map_data[ny][nx] < threshold):
                 queue.append((nx, ny))
                 visited.add((nx, ny))
     
     return False
+
+def check_nearest_occupied(start, map_data, map_info: MapMetaData, threshold=50):
+    if not isinstance(map_info, MapMetaData):
+        raise ValueError("map_info must be a MapMetaData")
+    
+    visited = set()
+    # Include diagonal movements
+    directions = [(0,1), (1,0), (0,-1), (-1,0), 
+                 (1,1), (1,-1), (-1,1), (-1,-1)]
+    queue = deque([(start, 0)])  # (position, distance)
+    visited.add(start)
+    min_dist = float('inf')
+    
+    while queue:
+        (x, y), curr_dist = queue.popleft()
+        
+        for dx, dy in directions:
+            nx, ny = x + dx, y + dy
+            if (0 <= ny < map_data.shape[0] and 0 <= nx < map_data.shape[1] and
+                (nx, ny) not in visited):
+                
+                # Calculate actual Euclidean distance from start
+                real_dist = math.sqrt((nx - start[0])**2 + (ny - start[1])**2)
+                
+                if map_data[ny][nx] >= threshold:
+                    real_world_dist = real_dist * map_info.resolution
+                    min_dist = min(min_dist, real_world_dist)
+                    continue
+                    
+                if map_data[ny][nx] > -2:
+                    queue.append(((nx, ny), curr_dist + 1))
+                    visited.add((nx, ny))
+    
+    return min_dist if min_dist != float('inf') else -1
 
 def get_grid_section(map_data: OccupancyGrid, cell_coords: list, start_point: list, end_points: list):
     """
@@ -54,8 +88,8 @@ def get_grid_section(map_data: OccupancyGrid, cell_coords: list, start_point: li
     width = max_x - min_x + 1
     height = max_y - min_y + 1
 
-    # Create new array filled with 100 (occupied)
-    formatted_grid = np.full((height, width), 100, dtype=np.int8)
+    # Create new array filled with -2
+    formatted_grid = np.full((height, width), -2, dtype=np.int8)
 
     # Convert cell coordinates to numpy array for easier handling
     coords = np.array(cell_coords)
@@ -67,7 +101,7 @@ def get_grid_section(map_data: OccupancyGrid, cell_coords: list, start_point: li
         grid_index = grid_to_index(x, y, map_data.info)
         if grid_index < 0 or grid_index >= len(map_data.data):
             continue
-        
+
         formatted_grid[y - min_y, x - min_x] = map_data.data[grid_index]
 
     # transform start and end points to new grid

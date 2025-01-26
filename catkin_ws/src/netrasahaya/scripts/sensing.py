@@ -65,19 +65,16 @@ def process_segment(segment, pose, occupancy, max_distance=1.5):
     # print(f'Processing segment {segment.name}')
     segment_map, start_point, end_points = utils.get_grid_section(occupancy, inside_points, start, end)
     is_passable = utils.check_passability(start_point, end_points, segment_map)
-
-    print(f'{segment.name}: {is_passable}')
+    distance = utils.check_nearest_occupied(start_point, segment_map, occupancy.info)
     
     # Determine state
-    # if distance == -1:
-    #     state = OccupancyState.FREE
-    # elif is_passable:
-    #     state = OccupancyState.NAVIGABLE
-    # else:
-    #     state = OccupancyState.BLOCKED
-    distance = max_distance
-    state = OccupancyState.BLOCKED
-    
+    if distance == -1:
+        state = OccupancyState.FREE
+    elif is_passable:
+        state = OccupancyState.NAVIGABLE
+    else:
+        state = OccupancyState.BLOCKED
+
     # Create visualization
     points_viz = []
     for x, y in edge_points:
@@ -87,14 +84,8 @@ def process_segment(segment, pose, occupancy, max_distance=1.5):
     # Create pointcloud
     points_viz_cloud = []
     for x, y in inside_points:
-        # if x < 0 or y < 0 or x >= occupancy.info.width or y >= occupancy.info.height:
-        #     print(f'Out of bounds: {x}, {y} -> {utils.grid_to_world(x, y, occupancy.info)}')
-        #     continue
         points_viz_cloud.append(utils.grid_to_world(x, y, occupancy.info))
     pointcloud = create_pointcloud(points_viz_cloud, 't265_odom_frame')
-
-    grid_x, grid_y = utils.world_to_grid(pose.position.x, pose.position.y, occupancy.info)
-    occupancy_value = occupancy.data[utils.grid_to_index(grid_x, grid_y, occupancy.info)]
 
     return distance, state, polygon, pointcloud
 
