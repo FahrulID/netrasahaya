@@ -1,7 +1,7 @@
 <launch>
     <param name="mode" type="string" value="sensing" /> <!-- guidance or sensing -->
 
-    <arg name="using_rosbag" default="false"/>
+    <arg name="using_rosbag" default="true"/>
     <arg name="rviz" default="true"/>
     <arg name="localization" default="true"/>
 
@@ -13,7 +13,7 @@
 
     <group if="$(arg using_rosbag)">
         <param name="use_sim_time" value="true"/>
-        <node pkg="rosbag" type="play" name="player" output="screen" args="--clock /home/fahrul/netrasahaya/catkin_ws/dataset3.bag"/>
+        <node pkg="rosbag" type="play" name="player" output="screen" args="--clock /home/fahrul/netrasahaya/catkin_ws/dataset1.bag"/>
     </group>
 
     <!-- <group unless="$(arg using_rosbag)">
@@ -33,10 +33,14 @@
         <arg name="rviz" value="$(arg rviz)"/>
     </include>
 
-    <include file="$(find netrasahaya)/launch/guidance.launch"></include>
-    <include file="$(find netrasahaya)/launch/sensing.launch">
-        <arg name="rviz" value="$(arg rviz)"/>
+    <include file="$(find rosbridge_server)/launch/rosbridge_websocket.launch" > 
+        <arg name="port" value="9090"/>
     </include>
 
-    <include file="$(find netrasahaya)/launch/feedback.launch"></include>
+    <!-- <include file="$(find netrasahaya)/launch/guidance.launch"></include>
+    <include file="$(find netrasahaya)/launch/sensing.launch">
+        <arg name="rviz" value="$(arg rviz)"/>
+    </include> -->
+
+    <!-- <include file="$(find netrasahaya)/launch/feedback.launch"></include> -->
 </launch>

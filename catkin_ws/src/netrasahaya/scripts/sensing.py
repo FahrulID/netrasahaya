@@ -1,154 +1,149 @@
 import math
 import rospy
-from geometry_msgs.msg import Pose, PoseStamped, Point, PolygonStamped, Polygon, Point32
+import numpy as np
+from enum import Enum
+from collections import deque
+from geometry_msgs.msg import Pose, Point, PolygonStamped, Point32
 from nav_msgs.msg import OccupancyGrid, Odometry
-from std_msgs.msg import Int32
+from std_msgs.msg import Int32, Float32
 import message_filters
 import utils.utils as utils
-import numpy as np
+from sensor_msgs.msg import PointCloud
 
-class SensingDisabled(Exception):
-    pass
+class OccupancyState(Enum):
+    FREE = 0
+    NAVIGABLE = 1
+    BLOCKED = 2
 
-def raycast_occupancy_check(pose, occupancy_grid, distance=1.0, theta=0.0, theta_range=0.0):
+class Segment:
+    def __init__(self, name, theta, theta_range):
+        self.name = name
+        self.theta = theta
+        self.theta_range = theta_range
+        self.state_pub = rospy.Publisher(f'/{name}/state', Int32, queue_size=10)
+        self.distance_pub = rospy.Publisher(f'/{name}/distance', Float32, queue_size=10)
+        self.polygon_pub = rospy.Publisher(f'/{name}/polygon', PolygonStamped, queue_size=10)
+        self.pointcloud_pub = rospy.Publisher(f'/{name}/pointcloud', PointCloud, queue_size=10)
+
+def create_polygon(points, frame_id):
+    msg = PolygonStamped()
+    msg.header.frame_id = frame_id
+    msg.header.stamp = rospy.Time.now()
+    msg.polygon.points = [Point32(x=x, y=y, z=0) for x, y in points]
+    return msg
+
+def create_pointcloud(points, frame_id):
+    msg = PointCloud()
+    msg.header.frame_id = frame_id
+    msg.header.stamp = rospy.Time.now()
+    msg.points = [Point(x=x, y=y, z=0) for x, y in points]
+    return msg
+
+def find_nearest_obstacle(center_pose, points, map_data, occupancy_info):
+    min_distance = float('inf')
+    center_x, center_y = center_pose.position.x, center_pose.position.y
     
-    map_data = utils.occupancygrid_to_numpy(occupancy_grid)
+    for x, y in points:
+        if 0 <= y < map_data.shape[0] and 0 <= x < map_data.shape[1]:
+            if map_data[y][x] > 50:  # Occupied threshold
+                world_x, world_y = utils.grid_to_world(x, y, occupancy_info)
+                dist = math.sqrt((world_x - center_x)**2 + (world_y - center_y)**2)
+                min_distance = min(min_distance, dist)
     
-    near_polygon, far_polygon = utils.get_polygon_segment_from_pose(pose, distance, theta, theta_range)
-    # print("far_polygon", far_polygon)
-    # print("pose", pose)
-    # print("distance", distance)
-    # print("theta", theta)
-    near_points = utils.get_grid_points_inside_polygon(near_polygon, occupancy_grid.info.resolution)
-    far_points = utils.get_grid_points_inside_polygon(far_polygon, occupancy_grid.info.resolution)
+    return min_distance if min_distance != float('inf') else -1
 
-    near_points_grid = []
-
-    for x, y in near_points:
-        # print("near x y", x, y)
-        a, b = utils.world_to_grid(x, y, occupancy_grid.info)
-        rotated_point = utils.rotate_point(Point(x=a, y=b, z=0), 0, 0, math.pi/2)
-        a = int(round(rotated_point.x))
-        b = int(round(rotated_point.y))
-        # print("near a b", a, b)
-        near_points_grid.append((a, b))
-
-    far_points_grid = []
-
-    for x, y in far_points:
-        # print("far x y", x, y)
-        a, b = utils.world_to_grid(x, y, occupancy_grid.info)
-        rotated_point = utils.rotate_point(Point(x=a, y=b, z=0), 0, 0, math.pi/2)
-        a = int(round(rotated_point.x))
-        b = int(round(rotated_point.y))
-        # print("far a b", a, b)
-        far_points_grid.append((a, b))
-
-    severity = 0
-
-    if(utils.check_if_points_in_grid_map_are_occupied(near_points_grid, map_data, 10)):
-        severity = 1
-    elif(utils.check_if_points_in_grid_map_are_occupied(far_points_grid, map_data, 10)):
-        severity = 2
-
-    # VISUALIZATION
-    polygon = PolygonStamped()
-    polygon.header.frame_id = 't265_odom_frame'
-    polygon.header.stamp = rospy.Time.now()
-    points = []
-    for x, y in near_polygon:
-        points.append(Point32(x=x, y=y, z=0))
-    points.append(Point32(x=near_polygon[0][0], y=near_polygon[0][1], z=0))
-    for x, y in far_polygon:
-        points.append(Point32(x=x, y=y, z=0))
-    points.append(Point32(x=far_polygon[0][0], y=far_polygon[0][1], z=0))
-
-    severity_pose = pose
-
-    if severity == 2:
-        severity_pose = utils.local_to_global(pose, utils.rotate_point(Point(x=distance, y=0, z=0), 0, 0, theta + (theta_range / 2)))
-    elif severity == 1:
-        severity_pose = utils.local_to_global(pose, utils.rotate_point(Point(x=distance/2, y=0, z=0), 0, 0, theta + (theta_range / 2)))
-    points.append(Point32(x=severity_pose.position.x, y=severity_pose.position.y, z=0))
-
-    polygon.polygon = Polygon(points)
-    # VISUALIZATION
+def process_segment(segment, pose, occupancy, max_distance=1.5):
+    map_data = utils.occupancygrid_to_numpy(occupancy)
     
-    return severity, polygon
+    # Create arc points for segment
+    start, end, vertices, edge_points, inside_points = utils.get_polygon_points(pose, segment.theta, segment.theta_range, max_distance, occupancy.info)
+    
+    # Find nearest obstacle
+    # distance = find_nearest_obstacle(pose, points, map_data, occupancy.info)
+    
+    # Check passability
+    # print(f'Processing segment {segment.name}')
+    segment_map, start_point, end_points = utils.get_grid_section(occupancy, inside_points, start, end)
+    is_passable = utils.check_passability(start_point, end_points, segment_map)
 
-odom = Odometry()
-occupancy = OccupancyGrid()
+    print(f'{segment.name}: {is_passable}')
+    
+    # Determine state
+    # if distance == -1:
+    #     state = OccupancyState.FREE
+    # elif is_passable:
+    #     state = OccupancyState.NAVIGABLE
+    # else:
+    #     state = OccupancyState.BLOCKED
+    distance = max_distance
+    state = OccupancyState.BLOCKED
+    
+    # Create visualization
+    points_viz = []
+    for x, y in edge_points:
+        points_viz.append(utils.grid_to_world(x, y, occupancy.info))
+    polygon = create_polygon(points_viz, 't265_odom_frame')
 
-def callback(odom_msg, occupancy_msg):
-    global odom, occupancy
-    odom = odom_msg
-    occupancy = occupancy_msg
+    # Create pointcloud
+    points_viz_cloud = []
+    for x, y in inside_points:
+        # if x < 0 or y < 0 or x >= occupancy.info.width or y >= occupancy.info.height:
+        #     print(f'Out of bounds: {x}, {y} -> {utils.grid_to_world(x, y, occupancy.info)}')
+        #     continue
+        points_viz_cloud.append(utils.grid_to_world(x, y, occupancy.info))
+    pointcloud = create_pointcloud(points_viz_cloud, 't265_odom_frame')
+
+    grid_x, grid_y = utils.world_to_grid(pose.position.x, pose.position.y, occupancy.info)
+    occupancy_value = occupancy.data[utils.grid_to_index(grid_x, grid_y, occupancy.info)]
+
+    return distance, state, polygon, pointcloud
+
+class SensingNode:
+    def __init__(self):
+        rospy.init_node('sensing')
+        
+        # Define segments
+        self.segments = [
+            Segment('front_left',  (22.5 * math.pi/180), math.pi/4),
+            Segment('front_right', -(22.5 * math.pi/180), math.pi/4),
+            Segment('left',  (67.5 * math.pi/180), math.pi/4),
+            Segment('right', -(67.5 * math.pi/180), math.pi/4)
+        ]
+        
+        # Setup subscribers
+        self.odom = None
+        self.occupancy = None
+        odometry_sub = message_filters.Subscriber('/t265/odom/sample', Odometry)
+        occupancy_sub = message_filters.Subscriber('/occupancy', OccupancyGrid)
+        ts = message_filters.ApproximateTimeSynchronizer([odometry_sub, occupancy_sub], 10, 0.1)
+        ts.registerCallback(self.callback)
+        
+        self.rate = rospy.Rate(30.0)
+        self.visualization_enabled = rospy.get_param("/sensing/visualize", False)
+    
+    def callback(self, odom_msg, occupancy_msg):
+        self.odom = odom_msg
+        self.occupancy = occupancy_msg
+    
+    def run(self):
+        while not rospy.is_shutdown():
+            if self.odom and self.occupancy:
+                for segment in self.segments:
+                    distance, state, polygon, pointcloud = process_segment(
+                        segment, self.odom.pose.pose, self.occupancy)
+                    
+                    segment.state_pub.publish(state.value)
+                    segment.distance_pub.publish(distance)
+                    
+                    if self.visualization_enabled:
+                        segment.polygon_pub.publish(polygon)
+                        segment.pointcloud_pub.publish(pointcloud)
+            
+            self.rate.sleep()
 
 if __name__ == '__main__':
-    rospy.init_node('sensing')
-
-    odometry_sub = message_filters.Subscriber('/t265/odom/sample', Odometry)
-    occupancy_sub = message_filters.Subscriber('/occupancy', OccupancyGrid)
-
-    ts = message_filters.ApproximateTimeSynchronizer([odometry_sub, occupancy_sub], 10, 0.1)
-    ts.registerCallback(callback)
-
-    kiri_pub = rospy.Publisher('/kiri', Int32, queue_size=10) # 0 = tidak ada, 1 = ada pada jarak 0.5m, 2 = ada pada jarak 1m
-    kiri_polygon_pub = rospy.Publisher('/kiri_polygon', PolygonStamped, queue_size=10)
-    kanan_pub = rospy.Publisher('/kanan', Int32, queue_size=10) # 0 = tidak ada, 1 = ada pada jarak 0.5m, 2 = ada pada jarak 1m
-    kanan_polygon_pub = rospy.Publisher('/kanan_polygon', PolygonStamped, queue_size=10)
-    depan_kiri_pub = rospy.Publisher('/depan_kiri', Int32, queue_size=10) # 0 = tidak ada, 1 = ada pada jarak 0.5m, 2 = ada pada jarak 1m
-    depan_kiri_polygon_pub = rospy.Publisher('/depan_kiri_polygon', PolygonStamped, queue_size=10)
-    depan_kanan_pub = rospy.Publisher('/depan_kanan', Int32, queue_size=10) # 0 = tidak ada, 1 = ada pada jarak 0.5m, 2 = ada pada jarak 1m
-    depan_kanan_polygon_pub = rospy.Publisher('/depan_kanan_polygon', PolygonStamped, queue_size=10)
-
-    visualization_enabled = rospy.get_param("/sensing/visualize", False)
-
-    rospy.logerr(f'Visualization enabled: {visualization_enabled}')
-
-    rate = rospy.Rate(30.0)
-    
-    while not rospy.is_shutdown():
-        try:
-            enabled = rospy.get_param("/mode", "none") == "sensing"
-
-            if not enabled:
-                raise SensingDisabled('Sensing is disabled')
-            
-            if odom == Odometry() or occupancy == OccupancyGrid():
-                raise SensingDisabled('No data received')
-            
-            theta1 = math.pi*1/2 - math.pi*1/8 # 90 - 22.5 = 67.5 degree
-            theta2 = math.pi*1/2 - math.pi*3/8 # 90 - 67.5 = 22.5 degree
-            theta_range = math.pi*1/8
-
-            kiri_severity, kiri_polygon = raycast_occupancy_check(odom.pose.pose, occupancy, 1, theta1, theta_range)
-            kiri_pub.publish(kiri_severity)
-
-            kanan_severity, kanan_polygon = raycast_occupancy_check(odom.pose.pose, occupancy, 1, -theta1, theta_range)
-            kanan_pub.publish(kanan_severity)
-
-            depan_kiri_severity, depan_kiri_polygon = raycast_occupancy_check(odom.pose.pose, occupancy, 1, theta2, theta_range)
-            depan_kiri_pub.publish(depan_kiri_severity)
-
-            depan_kanan_severity, depan_kanan_polygon = raycast_occupancy_check(odom.pose.pose, occupancy, 1, -theta2, theta_range)
-            depan_kanan_pub.publish(depan_kanan_severity)
-
-            if visualization_enabled:
-                kiri_polygon_pub.publish(kiri_polygon)
-                kanan_polygon_pub.publish(kanan_polygon)
-                depan_kiri_polygon_pub.publish(depan_kiri_polygon)
-                depan_kanan_polygon_pub.publish(depan_kanan_polygon)
-                # rospy.logerr(f'Kiri: {kiri_severity}, Depan Kiri: {depan_kiri_severity}, Depan Kanan: {depan_kanan_severity}, Kanan: {kanan_severity}')
-        except SensingDisabled as e:
-            rospy.logerr_throttle(1, e)
-            pass   
-        except rospy.ROSInterruptException:
-            break
-        except Exception as e:
-            rospy.logerr_throttle(e)
-            break
-        
-        rate.sleep()
-
-    exit(0)
+    try:
+        node = SensingNode()
+        node.run()
+    except rospy.ROSInterruptException:
+        pass

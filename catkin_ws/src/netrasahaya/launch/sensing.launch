@@ -1,5 +1,5 @@
 <launch>
-    <arg name="rviz" default="false"/>
+    <arg name="rviz" default="true"/>
 
     <group ns="sensing">
         <param if="$(arg rviz)" name="visualize" value="true"/>

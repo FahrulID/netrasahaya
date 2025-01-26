@@ -7,6 +7,172 @@ from shapely.geometry import Polygon as ShapelyPolygon
 from shapely.geometry import Point as ShapelyPoint
 import rospy
 from collections import deque
+import math
+import numpy as np
+from nav_msgs.msg import OccupancyGrid
+
+def check_passability(start, end_points, map_data):
+    if not end_points:
+        return False
+        
+    visited = set()
+    queue = deque([start])
+    visited.add(start)
+    
+    while queue:
+        x, y = queue.popleft()
+        if (x, y) in end_points:
+            return True
+            
+        for dx, dy in [(0,1), (1,0), (0,-1), (-1,0)]:
+            nx, ny = x + dx, y + dy
+            if (0 <= ny < map_data.shape[0] and 0 <= nx < map_data.shape[1] and
+                (nx, ny) not in visited and map_data[ny][nx] < 50):
+                queue.append((nx, ny))
+                visited.add((nx, ny))
+    
+    return False
+
+def get_grid_section(map_data: OccupancyGrid, cell_coords: list, start_point: list, end_points: list):
+    """
+    Extract and format a section of occupancy grid based on given cell coordinates
+    
+    Args:
+        msg: OccupancyGrid message
+        cell_coords: List of tuples containing (x,y) cell coordinates
+    
+    Returns:
+        numpy array with specified section, other cells marked as 100
+    """
+
+    # get cell grids bounding box of cell_coords
+    min_x = int(min(cell_coords, key=lambda x: x[0])[0])
+    max_x = int(max(cell_coords, key=lambda x: x[0])[0])
+    min_y = int(min(cell_coords, key=lambda x: x[1])[1])
+    max_y = int(max(cell_coords, key=lambda x: x[1])[1])
+
+    width = max_x - min_x + 1
+    height = max_y - min_y + 1
+
+    # Create new array filled with 100 (occupied)
+    formatted_grid = np.full((height, width), 100, dtype=np.int8)
+
+    # Convert cell coordinates to numpy array for easier handling
+    coords = np.array(cell_coords)
+
+    # Copy values from original grid for specified coordinates
+    for x, y in coords:
+        x = int(x)
+        y = int(y)
+        grid_index = grid_to_index(x, y, map_data.info)
+        if grid_index < 0 or grid_index >= len(map_data.data):
+            continue
+        
+        formatted_grid[y - min_y, x - min_x] = map_data.data[grid_index]
+
+    # transform start and end points to new grid
+    start_point = (start_point[0] - min_x, start_point[1] - min_y)
+    end_points = [(x - min_x, y - min_y) for x, y in end_points]
+
+    # loop over the formatted grid for visualization
+    # for i in range(height):
+    #     for j in range(width):
+    #         print(f'{chr(94 + int(formatted_grid[i, j]))}', end='')
+    #     print()
+
+    return formatted_grid, start_point, end_points
+
+def get_polygon_points(pose, theta, theta_range, max_distance, info):
+    if not isinstance(pose, Pose):
+        raise ValueError("pose must be a Pose")
+    
+    if not isinstance(info, MapMetaData):
+        raise ValueError("info must be a MapMetaData")
+    
+    yaw = tf_conversions.transformations.euler_from_quaternion([
+        pose.orientation.x,
+        pose.orientation.y,
+        pose.orientation.z,
+        pose.orientation.w
+    ])[2]
+
+    start_angle = yaw + theta - theta_range/2
+    end_angle = yaw + theta + theta_range/2
+
+    start_point = world_to_grid(pose.position.x, pose.position.y, info)
+    end_points = []
+
+    vertices = [] # center, leftmost, rightmost
+    vertices.append((pose.position.x, pose.position.y))
+
+    edge_points = []
+
+    for angle in np.linspace(start_angle, end_angle):
+        x = pose.position.x + max_distance * math.cos(angle)
+        y = pose.position.y + max_distance * math.sin(angle)
+        grid_x, grid_y = world_to_grid(x, y, info)
+        end_points.append((grid_x, grid_y))
+        edge_points.append((grid_x, grid_y))
+
+        # first point
+        if angle == start_angle:
+            vertices.append((grid_x, grid_y))
+        # leftmost point
+        if angle == end_angle:
+            vertices.append((grid_x, grid_y))
+
+    # right edge
+    edge_points.extend(bresenham_line(vertices[2], start_point))
+    # left edge
+    edge_points.extend(bresenham_line(start_point, vertices[1]))
+
+    inside_points = get_grid_points_inside_polygon(edge_points)
+
+    return start_point, end_points, vertices, edge_points, inside_points
+
+def bresenham_line(start_point, end_point):
+    """Get all points in line using Bresenham's algorithm with numpy
+    Args:
+        start_point: tuple (x1, y1)
+        end_point: tuple (x2, y2)
+    Returns:
+        Array of points [(x,y), ...]
+    """
+    x1, y1 = start_point
+    x2, y2 = end_point
+    
+    dx = abs(x2 - x1)
+    dy = abs(y2 - y1)
+    
+    x = x1
+    y = y1
+    
+    x_inc = 1 if x2 > x1 else -1
+    y_inc = 1 if y2 > y1 else -1
+    
+    points = []
+    points.append((x, y))
+    
+    if dx > dy:
+        error = dx / 2
+        while x != x2:
+            error -= dy
+            if error < 0:
+                y += y_inc
+                error += dx
+            x += x_inc
+            points.append((x, y))
+    else:
+        error = dy / 2
+        while y != y2:
+            error -= dx
+            if error < 0:
+                x += x_inc
+                error += dy
+            y += y_inc
+            points.append((x, y))
+            
+    return points
 
 def get_polygon_segment_from_pose(pose: Pose, distance=1.0, theta=0.0, theta_range=0.0):
     """
@@ -40,7 +206,7 @@ def get_polygon_segment_from_pose(pose: Pose, distance=1.0, theta=0.0, theta_ran
 
     return near_polygon, far_polygon
 
-def is_path_possible(grid, start_points, end_points, threshold=10, boundary_polygon=None) -> bool:
+def is_path_possible(grid, start_points, end_points, threshold=10) -> bool:
     """
     Utilizing BFS to find if there is a path from any cell in the first row to any cell in the last row
     :param grid: the grid
@@ -54,11 +220,6 @@ def is_path_possible(grid, start_points, end_points, threshold=10, boundary_poly
     if not start_points:
         return False  # No free starting points in the last row
     
-    if type(boundary_polygon) is not list and boundary_polygon is not None:
-        raise ValueError("boundary_polygon must be a list of (x, y) tuples")
-    
-    boundary_polygon = ShapelyPolygon(boundary_polygon) if boundary_polygon is not None else None
-
     # Directions for 4-connected grid (up, down, left, right)
     directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]
 
@@ -83,11 +244,6 @@ def is_path_possible(grid, start_points, end_points, threshold=10, boundary_poly
 
             is_visited = (nx, ny) in visited
             if is_visited:
-                continue
-
-            inside_polygon = boundary_polygon is None or boundary_polygon.contains(ShapelyPoint(nx, ny)) or boundary_polygon.touches(ShapelyPoint(nx, ny))
-            # print(inside_polygon)
-            if not inside_polygon:
                 continue
 
             is_occupied = grid[nx, ny] >= threshold
@@ -285,15 +441,17 @@ def world_to_grid(x, y, map_info: MapMetaData):
 
     origin = map_info.origin.position
     resolution = map_info.resolution
-
     # rospy.logerr(f'origin: {origin}, resolution: {resolution}')
 
     if resolution == 0:
         return 0, 0
-
     grid_x = int((x - origin.x) / resolution)
     grid_y = int((y - origin.y) / resolution)
     return grid_x, grid_y
+
+def grid_to_index(grid_x, grid_y, map_info: MapMetaData):
+    # rotasikan berdasarkan MapMetaData origin orientation
+    return (map_info.width * grid_x) + -1*grid_y
 
 def grid_to_world(grid_x, grid_y, map_info: MapMetaData):
     """
