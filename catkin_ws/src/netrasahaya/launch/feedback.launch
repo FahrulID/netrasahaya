@@ -1,5 +1,8 @@
 <launch>
     <group ns="feedback">
+        <param name="audio_path" value="$(find netrasahaya)/audio/"/>
+
+        <node pkg="sound_play" type="soundplay_node.py" name="soundplay_node" output="screen"></node>
         <node pkg="netrasahaya" type="feedback_driver.py" name="feedback" output="screen"></node>
     </group>
 </launch>

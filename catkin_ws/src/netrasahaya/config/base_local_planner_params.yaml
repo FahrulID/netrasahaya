@@ -1,7 +1,7 @@
 GlobalPlanner: # For list of available parameters, see http://wiki.ros.org/global_planner
   allow_unknown: true # Specifies whether or not to allow the global planner to create plans that traverse unknown space.
   default_tolerance: 0.1 # A tolerance on the goal point for the planner.
-  use_dijkstra: yes # Specifies whether or not to use dijkstra's algorithm or A* for planning.
+  use_dijkstra: false # Specifies whether or not to use dijkstra's algorithm or A* for planning.
   neutral_cost: 66 # The cost that the planner assigns to cells with no information.
   lethal_cost: 253 # The cost that the planner assigns to cells with lethal obstacles.
   cost_factor: 0.5
@@ -33,7 +33,7 @@ DWAPlannerROS:
   max_vel_trans: 1.0      # Maximum translational velocity (m/s)
 
   # Goal Tolerance Parameters
-  xy_goal_tolerance: 0.2  # Distance tolerance in the x-y plane for reaching a goal (m)
+  xy_goal_tolerance: 0.5  # Distance tolerance in the x-y plane for reaching a goal (m)
   yaw_goal_tolerance: 3.14 # Allow any yaw angle (doesn't matter if the robot rotates)
   latch_xy_goal_tolerance: false
 

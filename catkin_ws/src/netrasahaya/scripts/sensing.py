@@ -118,6 +118,12 @@ class SensingNode:
     
     def run(self):
         while not rospy.is_shutdown():
+            enabled = rospy.get_param("/mode", "none") == "sensing"
+            
+            if not enabled:
+                self.rate.sleep()
+                continue
+
             if self.odom and self.occupancy:
                 for segment in self.segments:
                     distance, state, polygon, pointcloud = process_segment(
