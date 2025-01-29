@@ -1,0 +1,17 @@
+version: "3"
+
+volumes:
+  mongodb_data:
+
+services:
+  mongodb:
+    image: mongodb/mongodb-community-server:6.0-ubi8
+    volumes:
+      - ./init-mongo.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+      - mongodb_data:/data/db
+    ports:
+      - "27017:27017"
+    environment:
+      MONGODB_INITDB_ROOT_USERNAME: root
+      MONGODB_INITDB_ROOT_PASSWORD: root
+      MONGODB_INITDB_DATABASE: db

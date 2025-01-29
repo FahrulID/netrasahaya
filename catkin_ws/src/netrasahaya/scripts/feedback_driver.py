@@ -10,6 +10,9 @@ from actionlib_msgs.msg import GoalStatusArray
 from sound_play.libsoundplay import SoundClient
 from typing import List
 import math
+from collections import deque
+import threading
+import time
 
 motor_speeds: List[int] = [0, 0, 0, 0]
 motor_states: List[int] = [0, 0, 0, 0] # 0 = FREE, 1 = NAVIGABLE, 2 = BLOCKED
@@ -76,35 +79,55 @@ class AudioFeedback:
     def __init__(self, audio_path):
         self.AUDIO_PATH = audio_path
         self.sound_client = SoundClient()
-
+        self.sound_queue = deque()
+        self.is_playing = False
+        
         if self.AUDIO_PATH == "None":
             self.INITIALIZED = False
             return
-        else:
-            self.INITIALIZED = True
+        
+        self.INITIALIZED = True
 
-        self.GUIDANCE_MODE = self.AUDIO_PATH + "guidance_mode.wav"
-        self.SENSING_MODE = self.AUDIO_PATH + "sensing_mode.wav"
-        self.SENSING_READY = self.AUDIO_PATH + "sensing_ready.wav"
-        self.SENSING_NOT_READY = self.AUDIO_PATH + "sensing_not_ready.wav"
-        self.GUIDANCE_READY = self.AUDIO_PATH + "guidance_ready.wav"
-        self.GUIDANCE_NOT_READY = self.AUDIO_PATH + "guidance_not_ready.wav"
-        self.GOAL_REACHED = self.AUDIO_PATH + "goal_reached.wav"
-        self.NAVIGATION_STARTED = self.AUDIO_PATH + "navigation_started.wav"
+        self.SOUNDS = {
+            "goal_reached": {"file": self.AUDIO_PATH + "goal_reached.wav", "duration": 1.15},
+            "sensing_ready": {"file": self.AUDIO_PATH + "sensing_ready.wav", "duration": 1.15},
+            "guidance_mode": {"file": self.AUDIO_PATH + "guidance_mode.wav", "duration": 1.20},
+            "sensing_mode": {"file": self.AUDIO_PATH + "sensing_mode.wav", "duration": 1.20},
+            "guidance_ready": {"file": self.AUDIO_PATH + "guidance_ready.wav", "duration": 1.25},
+            "sensing_not_ready": {"file": self.AUDIO_PATH + "sensing_not_ready.wav", "duration": 1.38},
+            "guidance_not_ready": {"file": self.AUDIO_PATH + "guidance_not_ready.wav", "duration": 1.44},
+            "navigation_started": {"file": self.AUDIO_PATH + "navigation_started.wav", "duration": 1.57}
+        }
 
-        print("Audio feedback initialized")
+        self.current_sound_end_time = 0
+        
+        # Start queue processor thread
+        self.queue_thread = threading.Thread(target=self._process_queue)
+        self.queue_thread.daemon = True
+        self.queue_thread.start()
 
-    def play(self, sound_msg):
-        if not self.INITIALIZED:
+    def _process_queue(self):
+        while True:
+            current_time = time.time()
+            if len(self.sound_queue) > 0 and current_time >= self.current_sound_end_time:
+                sound_name = self.sound_queue.popleft()
+                if sound_name in self.SOUNDS:
+                    sound = self.SOUNDS[sound_name]
+                    self.sound_client.playWave(sound["file"])
+                    self.current_sound_end_time = current_time + sound["duration"]
+            time.sleep(0.1)
+
+    def play(self, sound_name):
+        if not self.INITIALIZED or sound_name not in self.SOUNDS:
             return
-        if not isinstance(sound_msg, str):
-            return
-        self.sound_client.playWave(sound_msg)
+        self.sound_queue.append(sound_name)
 
     def stopAll(self):
         if not self.INITIALIZED:
             return
         self.sound_client.stopAll()
+        self.sound_queue.clear()
+        self.current_sound_end_time = 0
 
 def constructByteFromTwiNibble(nibble1: int, nibble2: int) -> int:
     return (nibble1 << 4) | nibble2
@@ -209,11 +232,10 @@ def handle_mode_change(mode: str, audio_feedback: AudioFeedback):
     mode_changed = current_mode != mode
 
     if mode_changed:
-        audio_feedback.stopAll()
         if mode == "sensing":
-            audio_feedback.play(audio_feedback.SENSING_MODE)
+            audio_feedback.play("sensing_mode")
         elif mode == "guidance":
-            audio_feedback.play(audio_feedback.GUIDANCE_MODE)
+            audio_feedback.play("guidance_mode")
 
     current_mode = mode
 
@@ -229,12 +251,10 @@ def handle_sensing_ready(t265_monitor: TopicMonitor, d435_monitor: TopicMonitor,
     if not should_notify:
         return
     
-    audio_feedback.stopAll()
-    
     if is_publishing:
-        audio_feedback.play(audio_feedback.SENSING_READY)
+        audio_feedback.play("sensing_ready")
     else:
-        audio_feedback.play(audio_feedback.SENSING_NOT_READY)
+        audio_feedback.play("sensing_not_ready")
 
 def handle_guidance_ready(t265_monitor: TopicMonitor, d435_monitor: TopicMonitor, rtabmap_monitor: TopicMonitor, audio_feedback: AudioFeedback):
     global current_mode, soundplay_ready
@@ -249,12 +269,10 @@ def handle_guidance_ready(t265_monitor: TopicMonitor, d435_monitor: TopicMonitor
     if not should_notify:
         return
     
-    audio_feedback.stopAll()
-    
     if is_publishing and not covariance_low:
-        audio_feedback.play(audio_feedback.GUIDANCE_READY)
+        audio_feedback.play("guidance_ready")
     else:
-        audio_feedback.play(audio_feedback.GUIDANCE_NOT_READY)
+        audio_feedback.play("guidance_not_ready")
 
 goal_reach_state_before = False
 navigation_state_before = False
@@ -275,12 +293,10 @@ def handle_navigation(goal_monitor: TopicMonitor, audio_feedback: AudioFeedback)
         return
     
     if goal_reached:
-        audio_feedback.stopAll()
-        audio_feedback.play(audio_feedback.GOAL_REACHED)
+        audio_feedback.play("goal_reached")
 
     if in_navigation:
-        audio_feedback.stopAll()
-        audio_feedback.play(audio_feedback.NAVIGATION_STARTED)
+        audio_feedback.play("navigation_started")
 
 if __name__ == '__main__':
     rospy.init_node('feedback_driver')
