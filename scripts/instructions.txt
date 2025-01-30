@@ -1,2 +1,16 @@
+# OLD
+
 EDIT CRONTAB USING "crontab -e" add crons inside crontab file in this folder
 COPY "set-rosmaster.sh" to /etc/profile.d
+
+# NEW 
+copy file in scripts/services into /etc/systemd/system/
+
+and then run
+sudo systemctl enable rosmaster
+sudo systemctl enable arduino
+sudo systemctl enable probe-wifi-dongle
+
+sudo systemctl start rosmaster
+sudo systemctl start arduino
+sudo systemctl start probe-wifi-dongle
