@@ -5,14 +5,11 @@ import ROSLIB from "roslib";
 
 const rosBridgeUrl = process.env.NEXT_PUBLIC_ROS_URL || "ws://localhost:9090";
 
-// Create the context
 const RosContext = createContext<ROSLIB.Ros | null>(null);
 
-// Provider component
 export function RosProvider({ children }: { children: React.ReactNode }) {
   const [ros] = useState<ROSLIB.Ros>(() => new ROSLIB.Ros({}));
   const [isConnected, setIsConnected] = useState<boolean>(false);
-  const [shouldReconnect, setShouldReconnect] = useState<boolean>(true);
 
   useEffect(() => {
     function connect() {
@@ -25,7 +22,7 @@ export function RosProvider({ children }: { children: React.ReactNode }) {
     function onError(error: any) {
       console.error("ROS error:", error);
       setIsConnected(false);
-      if (shouldReconnect) setTimeout(connect, 3000);
+      setTimeout(connect, 3000);
     }
     function onClose() {
       console.log("ROS closed.");
@@ -35,15 +32,7 @@ export function RosProvider({ children }: { children: React.ReactNode }) {
     ros.on("error", onError);
     ros.on("close", onClose);
     connect();
-
-    return () => {
-      setShouldReconnect(false);
-      ros.off("connection", onConnection);
-      ros.off("error", onError);
-      ros.off("close", onClose);
-      if (isConnected) ros.close();
-    };
-  }, [isConnected, ros, shouldReconnect]);
+  }, [isConnected, ros]);
 
   return <RosContext.Provider value={ros}>{children}</RosContext.Provider>;
 }
