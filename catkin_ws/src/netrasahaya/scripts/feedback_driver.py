@@ -450,8 +450,6 @@ if __name__ == '__main__':
             if current_mode == "guidance" and not goal_monitor.is_in_navigation():
                 motor_states = [0, 0, 0, 0]
 
-            print(f'Motor speeds: {motor_speeds}, Motor states: {motor_states}')
-
             if s and s.isOpen():
                 command = construct_command(motor_speeds, motor_states)
                 s.write(command)
