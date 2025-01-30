@@ -4,7 +4,7 @@ import serial as ser
 from std_msgs.msg import Int32
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import Image
-from geometry_msgs.msg import PoseWithCovarianceStamped
+from geometry_msgs.msg import PoseWithCovarianceStamped, Twist
 from std_msgs.msg import Float32
 from actionlib_msgs.msg import GoalStatusArray
 from sound_play.libsoundplay import SoundClient
@@ -15,7 +15,8 @@ import threading
 import time
 
 motor_speeds: List[int] = [0, 0, 0, 0]
-motor_states: List[int] = [0, 0, 0, 0] # 0 = FREE, 1 = NAVIGABLE, 2 = BLOCKED
+motor_states: List[int] = [0, 0, 0, 0]
+segment_state: List[int] = [0, 0, 0, 0] # 0 = FREE, 1 = NAVIGABLE, 2 = BLOCKED
 motor_toggles: List[bool] = [False, False, False, False] # 0 = pulse off, 1 = pulse on
 last_toggle_time: List[float] = [0, 0, 0, 0]
 
@@ -151,13 +152,15 @@ MOTOR_DEPAN_KANAN = 3
 
 PULSE_INTERVAL = 0.25 # in seconds
 
-def should_toggle(motor_index) -> bool:
+def should_toggle(motor_index):
+    global last_toggle_time, motor_toggles, segment_state
+
     current_time = rospy.get_time()
-    if current_time - last_toggle_time[motor_index] >= PULSE_INTERVAL:
+    if current_time - last_toggle_time[motor_index] >= PULSE_INTERVAL and segment_state[motor_index] == 1:
         last_toggle_time[motor_index] = current_time
         motor_toggles[motor_index] = not motor_toggles[motor_index]
-        return motor_toggles[motor_index]
-    return motor_toggles[motor_index]
+    else:
+        motor_toggles[motor_index] = True
 
 current_mode = "none"
 
@@ -172,36 +175,84 @@ def process_distance(distance: float) -> int:
 
 def front_left_distance_cb(msg: Float32):
     global motor_states
+
+    if not current_mode == "sensing":
+        return
+    
+    if motor_toggles[MOTOR_DEPAN_KIRI] == False:
+        motor_states[MOTOR_DEPAN_KIRI] = 0
+        return
+
     motor_states[MOTOR_DEPAN_KIRI] = process_distance(msg.data)
 
 def front_right_distance_cb(msg: Float32):
     global motor_states
+
+    if not current_mode == "sensing":
+        return
+    
+    if motor_toggles[MOTOR_DEPAN_KANAN] == False:
+        motor_states[MOTOR_DEPAN_KANAN] = 0
+        return
+    
     motor_states[MOTOR_DEPAN_KANAN] = process_distance(msg.data)
 
 def left_distance_cb(msg: Float32):
     global motor_states
+
+    if not current_mode == "sensing":
+        return
+    
+    if motor_toggles[MOTOR_KIRI] == False:
+        motor_states[MOTOR_KIRI] = 0
+        return
+    
     motor_states[MOTOR_KIRI] = process_distance(msg.data)
 
 def right_distance_cb(msg: Float32):
     global motor_states
+
+    if not current_mode == "sensing":
+        return
+    
+    if motor_toggles[MOTOR_KANAN] == False:
+        motor_states[MOTOR_KANAN] = 0
+        return
+    
     motor_states[MOTOR_KANAN] = process_distance(msg.data)
 
 # State callbacks (boilerplate)
 def front_left_state_cb(msg: Int32):
-    global motor_states
-    motor_states[MOTOR_DEPAN_KIRI] = msg.data
+    global segment_state
+
+    if not current_mode == "sensing":
+        return
+    
+    segment_state[MOTOR_DEPAN_KIRI] = msg.data
 
 def front_right_state_cb(msg: Int32):
-    global motor_states
-    motor_states[MOTOR_DEPAN_KANAN] = msg.data
+    global segment_state
+
+    if not current_mode == "sensing":
+        return
+    
+    segment_state[MOTOR_DEPAN_KANAN] = msg.data
 
 def left_state_cb(msg: Int32):
-    global motor_states
-    motor_states[MOTOR_KIRI] = msg.data
+    global segment_state
+
+    if not current_mode == "sensing":
+        return
+    
+    segment_state[MOTOR_KIRI] = msg.data
 
 def right_state_cb(msg: Int32):
-    global motor_states
-    motor_states[MOTOR_KANAN] = msg.data
+    global segment_state
+
+    if not current_mode == "sensing":
+        return
+    
+    segment_state[MOTOR_KANAN] = msg.data
 
 current_mode = None
 soundplay_initialized = False
@@ -298,6 +349,51 @@ def handle_navigation(goal_monitor: TopicMonitor, audio_feedback: AudioFeedback)
     if in_navigation:
         audio_feedback.play("navigation_started")
 
+def remap(value, leftMin, leftMax, rightMin, rightMax):
+    if value < leftMin or value > leftMax:
+        return 0
+
+    # Figure out how 'wide' each range is
+    leftSpan = leftMax - leftMin
+    rightSpan = rightMax - rightMin
+
+    # Convert the left range into a 0-1 range (float)
+    valueScaled = float(value - leftMin) / float(leftSpan)
+
+    # Convert the 0-1 range into a value in the right range.
+    return rightMin + (valueScaled * rightSpan)
+
+def handle_guidance(velocity: Twist):
+    global motor_states, motor_speeds, current_mode
+
+    if not current_mode == "guidance":
+        return
+    
+    motor_states = [1, 1, 1, 1] # use manual speed control
+
+    if velocity.linear.x == 0.0 and velocity.linear.y == 0.0:
+        motor_speeds = [0, 0, 0, 0]
+        return
+    
+    if velocity.linear.y > 0 and velocity.linear.x == 0.0:
+        motor_speeds = [0, 0, 0, 0]
+        motor_speeds[MOTOR_KIRI] = 255
+        return
+    
+    if velocity.linear.y < 0 and velocity.linear.x == 0.0:
+        motor_speeds = [0, 0, 0, 0]
+        motor_speeds[MOTOR_KANAN] = 255
+        return
+    
+    r = math.atan(velocity.linear.y / velocity.linear.x)
+    motor_speeds[MOTOR_KIRI] = remap(r, math.pi/4, math.pi/2, 50, 255)
+
+    motor_speeds[MOTOR_DEPAN_KIRI] = remap(r, math.pi/6, 5/12*math.pi, 255, 50) or remap(r, -1/12*math.pi, math.pi/6, 50, 255)
+
+    motor_speeds[MOTOR_DEPAN_KANAN] = remap(r, -5/12*math.pi, -math.pi/6,  50, 255) or remap(r, -math.pi/6, 1/12*math.pi, 50, 255)
+
+    motor_speeds[MOTOR_KANAN] = remap(r, -math.pi/2, -1/4*math.pi, 255, 50)
+
 if __name__ == '__main__':
     rospy.init_node('feedback_driver')
 
@@ -311,6 +407,8 @@ if __name__ == '__main__':
     front_right_state_sub = rospy.Subscriber('/front_right/state', Int32, front_right_state_cb)
     left_state_sub = rospy.Subscriber('/left/state', Int32, left_state_cb)
     right_state_sub = rospy.Subscriber('/right/state', Int32, right_state_cb)
+
+    velocity_sub = rospy.Subscriber('/cmd_vel', Twist, handle_guidance)
 
     audio_feedback = AudioFeedback(rospy.get_param("/feedback/audio_path", "None"))
 
@@ -343,6 +441,16 @@ if __name__ == '__main__':
             handle_guidance_ready(t265_monitor, d435_monitor, rtabmap_localization_monitor, audio_feedback)
             handle_navigation(goal_monitor, audio_feedback)
             handle_mode_change(rospy.get_param("/mode", "none"), audio_feedback)
+
+            should_toggle(MOTOR_KIRI)
+            should_toggle(MOTOR_DEPAN_KIRI)
+            should_toggle(MOTOR_DEPAN_KANAN)
+            should_toggle(MOTOR_KANAN)
+
+            if current_mode == "guidance" and not goal_monitor.is_in_navigation():
+                motor_states = [0, 0, 0, 0]
+
+            print(f'Motor speeds: {motor_speeds}, Motor states: {motor_states}')
 
             if s and s.isOpen():
                 command = construct_command(motor_speeds, motor_states)
