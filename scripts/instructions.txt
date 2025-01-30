@@ -10,7 +10,9 @@ and then run
 sudo systemctl enable rosmaster
 sudo systemctl enable arduino
 sudo systemctl enable probe-wifi-dongle
+sudo systemctl enable netrasahaya
 
 sudo systemctl start rosmaster
 sudo systemctl start arduino
 sudo systemctl start probe-wifi-dongle
+sudo systemctl start netrasahaya
